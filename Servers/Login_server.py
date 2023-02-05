@@ -1,5 +1,6 @@
 import socket
 import time
+import hashlib
 
 user_ips = []
 
@@ -24,7 +25,10 @@ def handle_input_from_central(login_server_x_central_server: socket.socket()):
 def handle_input_from_client(login_server_x_client: socket.socket()):
     data, ip = login_server_x_client.recvfrom(1024)
     if ip in user_ips:
-        print(data.decode())
+        data = data.decode()
+        name, password, flag = data.split("$")
+        name, password = hashlib.sha256(name.encode()).hexdigest(), hashlib.sha256(password.encode()).hexdigest()
+        print(name, password, flag)
 
 
 def main():
