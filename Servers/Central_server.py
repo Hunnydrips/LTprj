@@ -15,10 +15,11 @@ def conn_to_login(central_server_x_login_server: socket.socket()):
     login_ip_for_client = ""
     while login_ip_for_server == "" or login_ip_for_client == "":
         (data, ip) = central_server_x_login_server.recvfrom(1024)
-        if data.decode() == "3!a":
-            login_ip_for_server = ip
-        elif data.decode() == "3!b":
-            login_ip_for_client = ip
+        match data.decode():
+            case "3!a":
+                login_ip_for_server = ip
+            case "3!b":
+                login_ip_for_client = ip
     return login_ip_for_client, login_ip_for_server
 
 

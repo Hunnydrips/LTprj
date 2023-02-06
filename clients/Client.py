@@ -2,7 +2,16 @@ import socket
 import hashlib
 
 
-def conn():
+def init_settings():
+    with open("settings.txt", 'w') as f:
+        pass
+    with open("settings.txt", 'r') as f:
+        if len(f.read().split("\n")) < 3:
+            with open("settings.txt", 'w') as file:
+                file.write("auto_sign_up\nname\npassword\n")
+
+
+def conn():                                               # connection to central so to have the ip of login server
     client_x_everything = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_x_everything.sendto("log_requested".encode(), ("127.0.0.1", 8100))
     data = client_x_everything.recvfrom(1024)[0].decode()[1:-1].split(", ")
@@ -15,7 +24,6 @@ def log_in_or_sign_up(client_x_everything: socket.socket(), login_server_ip):
     name_hash, password_hash, flag = "", "", ""
     with open("settings.txt", 'r') as f:
         data = f.read().split("\n")
-        print(data)
     if data[0] == "true":
         name_hash, password_hash, flag = data[1], data[2], "log_in"
     else:
@@ -31,9 +39,12 @@ def log_in_or_sign_up(client_x_everything: socket.socket(), login_server_ip):
                 data[2] = password_hash
                 f.write("\n".join(data))
     client_x_everything.sendto(f"{name_hash}${password_hash}${flag}".encode(), login_server_ip)
+    response = client_x_everything.recvfrom(1024)[0].decode()
+    print(response)
 
 
 def main():
+    init_settings()
     client_x_everything, login_server_ip = conn()
 
 
