@@ -1,11 +1,9 @@
 import socket
 import hashlib
 import sqlite3
+from threading import Thread
 
 user_ips = []
-
-conn = sqlite3.connect("I_hate_sql.db")
-cursor = conn.cursor()
 
 
 def is_list_in_other_list(l1: list, l2: list):
@@ -45,42 +43,49 @@ def init_login_server() -> tuple:
     return login_server_x_client, login_server_x_central_server
 
 
-def handle_input_from_central(login_server_x_central_server: socket.socket()):
-    # while True:
+def handle_input_from_central(login_server_x_central_server: socket.socket()) -> None:
     data, ip = login_server_x_central_server.recvfrom(1024)
     data = data.decode()[1:-1].split(", ")
     user_ips.append((data[0][1:-1], int(data[1])))
+    Thread(target=handle_input_from_central, args=(login_server_x_central_server, )).start()
 
 
-def handle_input_from_client(login_server_x_client: socket.socket()):
+def handle_input_from_client(login_server_x_client: socket.socket()) -> None:
+    global conn
+    global cursor
+    conn = sqlite3.connect("I_hate_sql.db")
+    cursor = conn.cursor()
+    create_table()
     data, ip = login_server_x_client.recvfrom(1024)
     if ip in user_ips:
-        data = data.decode()
-        name, password, flag = data.split("$")
+        name, password, flag = data.decode().split("$")
         name, password = hashlib.sha256(name.encode()).hexdigest(), hashlib.sha256(password.encode()).hexdigest()
         print(name, password, flag)
-        to_send = ''
+        to_send = 'Incorrect data'
         match flag:
             case "log_in":
                 if in_table([name, password]):
-                    to_send = "successful"
+                    to_send = "log_in successful"
+                    user_ips.remove(ip)
                 else:
                     to_send = "incorrect username/password"
             case "sign_up":
-                if in_table([name]):
-                    to_send = "This username has been already taken"
-                else:
+                if not in_table([name]):
                     insert_to_table([name, password])
                     to_send = "Created username successfully"
-        if to_send:
-            login_server_x_client.sendto(to_send.encode(), ip)
+                    user_ips.remove(ip)
+                else:
+                    to_send = "This username has been already taken"
+        login_server_x_client.sendto(to_send.encode(), ip)
+    Thread(target=handle_input_from_client, args=(login_server_x_client,)).start()
 
 
 def main():
-    create_table()
     login_server_x_client, login_server_x_central_server = init_login_server()
     handle_input_from_central(login_server_x_central_server)
     handle_input_from_client(login_server_x_client)
+    while True:
+        pass
     login_server_x_central_server.close()
     login_server_x_client.close()
     cursor.execute('SELECT * FROM users')

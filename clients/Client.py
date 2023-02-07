@@ -3,20 +3,22 @@ import hashlib
 
 
 def init_settings():
-    with open("settings.txt", 'w') as f:
-        pass
+    with open("settings.txt", 'a'):
+        pass  # ensuring the file's existence
     with open("settings.txt", 'r') as f:
-        if len(f.read().split("\n")) < 3:
+        if len(f.readlines()) < 3:
             with open("settings.txt", 'w') as file:
                 file.write("auto_sign_up\nname\npassword\n")
 
 
-def conn():                                               # connection to central so to have the ip of login server
+def connect():                                               # connection to central so to have the ip of login server
     client_x_everything = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_x_everything.sendto("log_requested".encode(), ("127.0.0.1", 8100))
     data = client_x_everything.recvfrom(1024)[0].decode()[1:-1].split(", ")
     login_server_ip = (data[0][1:-1], int(data[1]))
-    log_in_or_sign_up(client_x_everything, login_server_ip)
+    while not log_in_or_sign_up(client_x_everything, login_server_ip):
+        # todo: graphic shit too
+        pass
     return client_x_everything, login_server_ip
 
 
@@ -29,8 +31,8 @@ def log_in_or_sign_up(client_x_everything: socket.socket(), login_server_ip):
     else:
         name_hash = hashlib.sha256(input("Enter username: ").encode()).hexdigest()
         password_hash = hashlib.sha256(input("Submit password: ").encode()).hexdigest()
-        flag = input("log_in or sign_up")
-        if input("Keep signed in") == "true":
+        flag = input("log_in or sign_up: ")
+        if input("Keep signed in: ") == "true":
             with open("settings.txt", 'r') as f:
                 data = f.readlines()
             with open("settings.txt", 'w') as f:
@@ -40,12 +42,14 @@ def log_in_or_sign_up(client_x_everything: socket.socket(), login_server_ip):
                 f.write("\n".join(data))
     client_x_everything.sendto(f"{name_hash}${password_hash}${flag}".encode(), login_server_ip)
     response = client_x_everything.recvfrom(1024)[0].decode()
-    print(response)
+    positive_answer = ["log_in successful", "Created username successfully"]
+    # todo: graphic func that takes the response and presents it on the screen
+    return response in positive_answer
 
 
 def main():
     init_settings()
-    client_x_everything, login_server_ip = conn()
+    client_x_everything, login_server_ip = connect()
 
 
 if __name__ == '__main__':
