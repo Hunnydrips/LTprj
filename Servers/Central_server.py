@@ -10,7 +10,7 @@ def init_central_server() -> tuple:
     return central_server_x_client, central_server_x_login_server
 
 
-def connect_to_login(central_server_x_login_server: socket.socket()):
+def connect_to_login(central_server_x_login_server: socket.socket()) -> tuple:
     login_ip_for_server = ""
     login_ip_for_client = ""
     while not login_ip_for_server or not login_ip_for_client:
@@ -23,8 +23,7 @@ def connect_to_login(central_server_x_login_server: socket.socket()):
     return login_ip_for_client, login_ip_for_server
 
 
-def handle_request(central_server_x_client: socket.socket(), central_server_x_login_server: socket.socket(), log_serv_ip_for_server: tuple, log_serv_ip_for_clients: tuple):
-    # while True:
+def handle_request(central_server_x_client: socket.socket(), central_server_x_login_server: socket.socket(), log_serv_ip_for_server: tuple, log_serv_ip_for_clients: tuple) -> None:
     data, ip = central_server_x_client.recvfrom(1024)
     print(data, ip)
     if data.decode() == "log_requested":
