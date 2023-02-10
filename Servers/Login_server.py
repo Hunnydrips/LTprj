@@ -1,16 +1,17 @@
 import socket
 import hashlib
 import sqlite3
+import tkinter
 from threading import Thread
 
 user_ips = []
 
 
-def is_list_in_other_list(l1: list, l2: list):
+def is_list_in_other_list(l1: list, l2: list) -> bool:
     return str(l1)[1:-1].__contains__(str(l2)[1:-1])
 
 
-def create_table():
+def create_table() -> None:
     cursor.execute("CREATE TABLE IF NOT EXISTS users (name_hash_hash TEXT, password_hash_hash TEXT)")
 
 
@@ -28,7 +29,7 @@ def in_table(items: list) -> bool:
     return False
 
 
-def insert_to_table(item: list):
+def insert_to_table(item: list) -> None:
     cursor.execute("INSERT INTO users VALUES (?, ?)", item)
     conn.commit()
 
