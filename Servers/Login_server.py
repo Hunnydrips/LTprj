@@ -1,7 +1,6 @@
 import socket
 import hashlib
 import sqlite3
-import tkinter
 from threading import Thread
 
 user_ips = []
@@ -51,7 +50,7 @@ def handle_input_from_central(login_server_x_central_server: socket.socket()) ->
     Thread(target=handle_input_from_central, args=(login_server_x_central_server, )).start()
 
 
-def handle_input_from_client(login_server_x_client: socket.socket()) -> None:
+def handle_input_from_client(login_server_x_client: socket.socket(), login_server_x_central_server: socket.socket()) -> None:
     global conn
     global cursor
     conn = sqlite3.connect("I_hate_sql.db")
@@ -59,32 +58,33 @@ def handle_input_from_client(login_server_x_client: socket.socket()) -> None:
     create_table()
     data, ip = login_server_x_client.recvfrom(1024)
     if ip in user_ips:
-        name, password, flag = data.decode().split("$")
-        name, password = hashlib.sha256(name.encode()).hexdigest(), hashlib.sha256(password.encode()).hexdigest()
-        print(name, password, flag)
+        name, password_hash, flag = data.decode().split("$")
+        name_hash, password_hash_hash = hashlib.sha256(name.encode()).hexdigest(), hashlib.sha256(password_hash.encode()).hexdigest()
         to_send = 'Incorrect data'
         match flag:
             case "log_in":
-                if in_table([name, password]):
+                if in_table([name_hash, password_hash_hash]):
                     to_send = "log_in successful"
                     user_ips.remove(ip)
                 else:
                     to_send = "incorrect username/password"
             case "sign_up":
-                if not in_table([name]):
-                    insert_to_table([name, password])
+                if not in_table([name_hash]):
+                    insert_to_table([name_hash, password_hash_hash])
                     to_send = "Created username successfully"
                     user_ips.remove(ip)
                 else:
                     to_send = "This username has been already taken"
         login_server_x_client.sendto(to_send.encode(), ip)
-    Thread(target=handle_input_from_client, args=(login_server_x_client,)).start()
+        if to_send in ["log_in successful", "Created username successfully"]:
+            login_server_x_central_server.sendto(f"This user has been verified, {ip}, {name}".encode(), ("127.0.0.1", 8101))
+    Thread(target=handle_input_from_client, args=(login_server_x_client, login_server_x_central_server)).start()
 
 
 def main():
     login_server_x_client, login_server_x_central_server = init_login_server()
     handle_input_from_central(login_server_x_central_server)
-    handle_input_from_client(login_server_x_client)
+    handle_input_from_client(login_server_x_client, login_server_x_central_server)
     while True:
         pass
     login_server_x_central_server.close()

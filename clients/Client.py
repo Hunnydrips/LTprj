@@ -19,7 +19,10 @@ def connect_to_login_server() -> tuple:                                         
     while not log_in_or_sign_up(client_x_everything, login_server_ip):
         pass
     print("Logged in successfully")
-    return client_x_everything, login_server_ip
+    data = client_x_everything.recvfrom(1024)[0].decode()[1:-1].split(", ")
+    game_server_ip = (data[0][1:-1], int(data[1]))
+    client_x_everything.sendto("Begin".encode(), game_server_ip)
+    return client_x_everything, game_server_ip
 
 
 def log_in_or_sign_up(client_x_everything: socket.socket(), login_server_ip) -> bool:
@@ -43,7 +46,7 @@ def log_in_or_sign_up(client_x_everything: socket.socket(), login_server_ip) -> 
 
 def main():
     init_settings()
-    client_x_everything, login_server_ip = connect_to_login_server()
+    client_x_everything, game_server_ip = connect_to_login_server()
 
 
 if __name__ == '__main__':
