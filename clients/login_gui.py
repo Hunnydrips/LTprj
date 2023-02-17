@@ -7,17 +7,16 @@ login_server_ip = ('', 0)
 
 
 def send_credentials(root, username, password, var_flag, str_flag):
-    name_hash = hashlib.sha256(username.encode()).hexdigest()
     password_hash = hashlib.sha256(password.encode()).hexdigest()
     if var_flag.get():
         with open("settings.txt", 'r') as f:
             data = f.readlines()
         with open("settings.txt", 'w') as f:
             data[0] = "true"
-            data[1] = name_hash
+            data[1] = username
             data[2] = password_hash
             f.write("\n".join(data))
-    client_x_everything.sendto(f"{name_hash}${password_hash}${str_flag}".encode(), login_server_ip)
+    client_x_everything.sendto(f"{username}${password_hash}${str_flag}".encode(), login_server_ip)
     response = client_x_everything.recvfrom(1024)[0].decode()
     positive_answer = ["log_in successful", "Created username successfully"]
     if response in positive_answer:
