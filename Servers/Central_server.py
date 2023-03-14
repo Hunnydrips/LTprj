@@ -24,7 +24,7 @@ def connect_to_login(central_server_x_login_server: socket.socket()) -> tuple:
     return login_ip_for_client, login_ip_for_server
 
 
-def connect_to_game(central_server_x_game_server: socket.socket()):
+def connect_to_game(central_server_x_game_server: socket.socket()) -> tuple:
     game_ip_for_server, game_ip_for_client = "", ""
     while not game_ip_for_server or not game_ip_for_client:
         (data, ip) = central_server_x_game_server.recvfrom(1024)

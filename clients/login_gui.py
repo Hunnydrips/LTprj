@@ -116,11 +116,14 @@ def sign_up_screen():
     heading = Label(frm, text="Sign-in", fg="#57a1f8", bg="white", font=("Microsoft YaHei UI Light", 23, "bold"))
     heading.place(x=100, y=5)
 
+    def validate_password(username, password, confirm_password):
+        return username != "username" and password != "password" and confirm_password == password and username and password
+
     def sign_up():
         username = user.get()
         password = passcode.get()
         confirm_password = confirm_passcode.get()
-        if username != "username" and password != "password" and confirm_password == password and username and password:
+        if validate_password(username, password, confirm_password):
             send_credentials(root, username, password, var_flag, "sign_up")
         else:
             pass
@@ -192,8 +195,8 @@ def sign_up_screen():
     label2.place(x=25, y=264)
 
     var_flag = IntVar()
-    stay_in = Checkbutton(frm, width=1, height=1, cursor="hand2", bg="white", fg="#57a1f8", variable=var_flag, activebackground="white", activeforeground="white")
+    stay_in = Checkbutton(frm, width=1, height=1, cursor="hand2", bg="white", fg="#57a1f8", variable=var_flag,
+                          activebackground="white", activeforeground="white")
     stay_in.place(x=120, y=264)
 
     root.mainloop()
-

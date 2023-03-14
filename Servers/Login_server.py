@@ -3,34 +3,25 @@ import hashlib
 import sqlite3
 from threading import Thread
 
-user_ips = []
+USER_IPS = []
 
 
 def is_list_in_other_list(l1: list, l2: list) -> bool:
     return str(l1)[1:-1].__contains__(str(l2)[1:-1])
 
 
-def create_table() -> None:
-    cursor.execute("CREATE TABLE IF NOT EXISTS users (name_hash_hash TEXT, password_hash_hash TEXT)")
-
-
-def in_table(items: list) -> bool:
+def in_table(items: list, cur) -> bool:
     x = '*'
     if len(items) == 1:
         x = 'name_hash_hash'
-    cursor.execute(f'SELECT {x} FROM users')
-    rows = cursor.fetchall()
+    cur.execute(f'SELECT {x} FROM users')
+    rows = cur.fetchall()
     if len(items) == 1:
         rows = [rows]
     for row in rows:
         if is_list_in_other_list(row, items):
             return True
     return False
-
-
-def insert_to_table(item: list) -> None:
-    cursor.execute("INSERT INTO users VALUES (?, ?)", item)
-    conn.commit()
 
 
 def init_login_server() -> tuple:
@@ -46,33 +37,32 @@ def init_login_server() -> tuple:
 def handle_input_from_central(login_server_x_central_server: socket.socket()) -> None:
     data, ip = login_server_x_central_server.recvfrom(1024)
     data = data.decode()[1:-1].split(", ")
-    user_ips.append((data[0][1:-1], int(data[1])))
+    USER_IPS.append((data[0][1:-1], int(data[1])))
     Thread(target=handle_input_from_central, args=(login_server_x_central_server, )).start()
 
 
 def handle_input_from_client(login_server_x_client: socket.socket(), login_server_x_central_server: socket.socket()) -> None:
-    global conn
-    global cursor
     conn = sqlite3.connect("I_hate_sql.db")
     cursor = conn.cursor()
-    create_table()
+    cursor.execute("CREATE TABLE IF NOT EXISTS users (name_hash_hash TEXT, password_hash_hash TEXT)")
     data, ip = login_server_x_client.recvfrom(1024)
-    if ip in user_ips:
+    if ip in USER_IPS:
         name, password_hash, flag = data.decode().split("$")
         name_hash, password_hash_hash = hashlib.sha256(name.encode()).hexdigest(), hashlib.sha256(password_hash.encode()).hexdigest()
         to_send = 'Incorrect data'
         match flag:
             case "log_in":
-                if in_table([name_hash, password_hash_hash]):
+                if in_table([name_hash, password_hash_hash], cursor):
                     to_send = "log_in successful"
-                    user_ips.remove(ip)
+                    USER_IPS.remove(ip)
                 else:
                     to_send = "incorrect username/password"
             case "sign_up":
-                if not in_table([name_hash]):
-                    insert_to_table([name_hash, password_hash_hash])
+                if not in_table([name_hash], cursor):
+                    cursor.execute("INSERT INTO users VALUES (?, ?)", [name_hash, password_hash_hash])
+                    conn.commit()
                     to_send = "Created username successfully"
-                    user_ips.remove(ip)
+                    USER_IPS.remove(ip)
                 else:
                     to_send = "This username has been already taken"
         login_server_x_client.sendto(to_send.encode(), ip)
