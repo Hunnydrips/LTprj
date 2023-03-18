@@ -71,13 +71,13 @@ class player:
         self.to_blit = pygame.transform.rotate(
             self.animations[self.status].sprite_list[self.animations[self.status].current_sprite], self.angle)
         self.hit_box = self.to_blit.get_rect()
-        self.hit_box.center = pos_by_distance_and_angle(self, -18.08, -51)
+        self.hit_box.center = pos_by_distance_and_angle(self.angle, -18.08, -51, self.collision_center)
 
     def shoot(self, mouse_x: int, mouse_y: int):
         if self.status != "reload" and self.last_shot + 0.25 <= time.time() and self.left_in_magazine:
             self.last_shot = time.time()
             self.left_in_magazine -= 1
-            self.lasers.append(laser(*pos_by_distance_and_angle(self, 11.188, -186), mouse_x, mouse_y))
+            self.lasers.append(laser(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center), mouse_x, mouse_y))
             self.status = "shoot"
             self.animations[self.status].reset()
 
@@ -129,12 +129,12 @@ class laser:
         return False
 
 
-def pos_by_distance_and_angle(P: player, angle_const: float, distance: float) -> tuple:
-    angle = (angle_const - P.angle) * math.pi / 180
+def pos_by_distance_and_angle(player_angle: float, angle_const: float, distance: float, collision_center: Point.point) -> tuple:
+    angle = (angle_const - player_angle) * math.pi / 180
     m = math.tan(angle)
-    x = distance / math.sqrt(1 + m ** 2) + P.collision_center.x
-    y = m * (x - P.collision_center.x) + P.collision_center.y
-    if -90 < P.angle - angle_const < 90:
-        x = 2 * P.collision_center.x - x
-        y = 2 * P.collision_center.y - y
+    x = distance / math.sqrt(1 + m ** 2) + collision_center.x
+    y = m * (x - collision_center.x) + collision_center.y
+    if -90 < player_angle - angle_const < 90:
+        x = 2 * collision_center.x - x
+        y = 2 * collision_center.y - y
     return int(x), int(y)

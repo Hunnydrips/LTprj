@@ -165,6 +165,12 @@ def main():
                 Laser.rect.x -= camera_x
                 Laser.rect.y -= camera_y
                 screen.blit(Laser.to_blit, Laser.rect)
+                distance = -54
+                if Laser.state == 0:
+                    distance = 0
+                x, y = pos_by_distance_and_angle(Laser.angle, 0, distance, Point.point(*Laser.rect.center))
+                laser_collide_rect = pygame.Rect((x, y), (30, 30))
+                pygame.draw.rect(screen, BLUE, laser_collide_rect, 4)
                 Laser.rect.x += camera_x
                 Laser.rect.y += camera_y
 
