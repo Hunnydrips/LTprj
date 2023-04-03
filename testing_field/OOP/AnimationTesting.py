@@ -1,12 +1,12 @@
 import pygame.draw
 from pygame.locals import *
-from GUIoop import *
+from clients.Client_classes.graphic_functions import *
 
 pygame.init()
 screen = pygame.display.set_mode((400, 400), RESIZABLE)
 clock = pygame.time.Clock()
 TILES = []
-COLLIDE_LIST = [Point.point(2, 8), Point.point(5, 9)]
+COLLIDE_LIST = [point(2, 8), point(5, 9)]
 
 
 def load_tiles():
@@ -20,18 +20,18 @@ def paint_map(camera_x: int, camera_y: int):
     top_left_tile_y = camera_y // TILE_SIZE
     for i in range(screen.get_width() // TILE_SIZE + 2):
         for j in range(screen.get_height() // TILE_SIZE + 2):
-            top_left_tile = Point.point(top_left_tile_x + i, top_left_tile_y + j)
+            top_left_tile = point(top_left_tile_x + i, top_left_tile_y + j)
             if top_left_tile in COLLIDE_LIST or (
                     (top_left_tile_x + i) % TILED_MAP_WIDTH == 0 and 0 <= top_left_tile_y + j <= TILED_MAP_HEIGHT) or (
                     (top_left_tile_y + j) % TILED_MAP_HEIGHT == 0 and 0 <= top_left_tile_x + i <= TILED_MAP_WIDTH):
                 tile_pos = (i * TILE_SIZE - to_add_x, j * TILE_SIZE - to_add_y)
-                if top_left_tile == Point.point(0, 0):
+                if top_left_tile == point(0, 0):
                     screen.blit(TILES[4], tile_pos)
-                elif top_left_tile == Point.point(0, TILED_MAP_HEIGHT):
+                elif top_left_tile == point(0, TILED_MAP_HEIGHT):
                     screen.blit(TILES[7], tile_pos)
-                elif top_left_tile == Point.point(TILED_MAP_WIDTH, 0):
+                elif top_left_tile == point(TILED_MAP_WIDTH, 0):
                     screen.blit(TILES[5], tile_pos)
-                elif top_left_tile == Point.point(TILED_MAP_WIDTH, TILED_MAP_HEIGHT):
+                elif top_left_tile == point(TILED_MAP_WIDTH, TILED_MAP_HEIGHT):
                     screen.blit(TILES[6], tile_pos)
                 elif top_left_tile.y % TILED_MAP_HEIGHT == 0:
                     screen.blit(TILES[1], tile_pos)
@@ -43,7 +43,7 @@ def paint_map(camera_x: int, camera_y: int):
                 screen.blit(TILES[0], (i * TILE_SIZE - to_add_x, j * TILE_SIZE - to_add_y))
 
 
-def move_and_collide(P: player, camera_x: int, camera_y: int, enable_hit_box: bool = False):
+def move_and_collide(P, camera_x: int, camera_y: int, enable_hit_box: bool = False):
     P.collision_center.x += 2 * P.x_dir - camera_x
     P.collision_center.y += 2 * P.y_dir - camera_y
 
@@ -73,7 +73,7 @@ def move_and_collide(P: player, camera_x: int, camera_y: int, enable_hit_box: bo
                      (start_y - HIT_BOX_SIZE // 2 * mult_y * i) // TILE_SIZE * TILE_SIZE - camera_y),
                     (TILE_SIZE, TILE_SIZE)),
                                  4)
-            tile = Point.point(start_x // TILE_SIZE, (start_y - HIT_BOX_SIZE // 2 * mult_y * i) // TILE_SIZE)
+            tile = point(start_x // TILE_SIZE, (start_y - HIT_BOX_SIZE // 2 * mult_y * i) // TILE_SIZE)
             if tile not in tiles_to_check:
                 tiles_to_check.append(tile)
     if P.y_dir:
@@ -85,7 +85,7 @@ def move_and_collide(P: player, camera_x: int, camera_y: int, enable_hit_box: bo
                     ((start_x - HIT_BOX_SIZE // 2 * mult_x * i) // TILE_SIZE * TILE_SIZE - camera_x,
                      start_y // TILE_SIZE * TILE_SIZE - camera_y), (TILE_SIZE, TILE_SIZE)),
                                  4)
-            tile = Point.point((start_x - HIT_BOX_SIZE // 2 * mult_x * i) // TILE_SIZE, start_y // TILE_SIZE)
+            tile = point((start_x - HIT_BOX_SIZE // 2 * mult_x * i) // TILE_SIZE, start_y // TILE_SIZE)
             if tile not in tiles_to_check:
                 tiles_to_check.append(tile)
     flag = True
@@ -101,7 +101,7 @@ def move_and_collide(P: player, camera_x: int, camera_y: int, enable_hit_box: bo
 
 def main():
     running = True
-    P = player(Point.point(120 * 2, 120 * 2))
+    P = player()
     load_tiles()
     while running:
         camera_x, camera_y = P.collision_center.to_tuple()
@@ -168,7 +168,7 @@ def main():
                 distance = -54
                 if Laser.state == 0:
                     distance = 0
-                x, y = pos_by_distance_and_angle(Laser.angle, 0, distance, Point.point(*Laser.rect.center))
+                x, y = pos_by_distance_and_angle(Laser.angle, 0, distance, point(*Laser.rect.center))
                 laser_collide_rect = pygame.Rect((x, y), (30, 30))
                 pygame.draw.rect(screen, BLUE, laser_collide_rect, 4)
                 Laser.rect.x += camera_x

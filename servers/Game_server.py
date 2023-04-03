@@ -1,13 +1,17 @@
 import socket
-from threading import Thread
-from Classes import Player
-from Classes import Zone_server
 import math
+import struct
+import time
+from threading import Thread
+from Server_classes.server_objects import *
+from testing_field import Zone_server
 
 ACTIVE_PLAYERS = []
 BORDERS = [0]
 IPS = []
 ZONE_LIST = []
+directions_x: dict = {"right": 1, "left": -1}
+directions_y: dict = {"up": -1, "down": 1}
 
 
 def init_game_server() -> tuple:
@@ -20,30 +24,42 @@ def init_game_server() -> tuple:
     return game_server_x_client, game_server_x_central_server
 
 
-def handle_request_from_central(game_server_x_central_server) -> None:
+def handle_request_from_central(game_server_x_client: socket.socket, game_server_x_central_server: socket.socket):
     data = game_server_x_central_server.recvfrom(1024)[0].decode().split(", ")
+    Thread(target=handle_request_from_central, args=(game_server_x_client, game_server_x_central_server)).start()
     IPS.append((data[0][2:-1], int(data[1][:-1])))
-    ACTIVE_PLAYERS.append(Player.player(data[2], (data[0][2:-1], int(data[1][:-1]))))
-    Thread(target=handle_request_from_central, args=(game_server_x_central_server,)).start()
+    ACTIVE_PLAYERS.append(player(data[2], (data[0][2:-1], int(data[1][:-1]))))
+    Thread(target=move_player, args=(game_server_x_client, ACTIVE_PLAYERS[-1])).start()
 
 
-def handle_request_from_player(game_server_x_client) -> None:
+def handle_request_from_player(game_server_x_client: socket.socket):
     data, ip = game_server_x_client.recvfrom(1024)
-    if ip not in IPS:
-        Thread(target=handle_request_from_player, args=(game_server_x_client,)).start()
+    Thread(target=handle_request_from_player, args=(game_server_x_client,)).start()
+    data = data.decode()
+    if ip not in IPS or data == "Begin":
         return
-    match data.decode():
-        case "Begin":
-            pass
+    P = ACTIVE_PLAYERS[IPS.index(ip)]
+    action_type, direction = data.split(" ")
+    match action_type:
+        case "press":
+            if direction in directions_x:
+                P.x_dir = directions_x[direction]
+            else:
+                P.y_dir = directions_y[direction]
+        case "release":
+            if direction in directions_x:
+                P.x_dir = 0
+            else:
+                P.y_dir = 0
 
 
-def init_zones(server_amount: int) -> None:
+def init_zones(server_amount: int):
     for i in range(server_amount):
         ZONE_LIST.append(Zone_server.zone_server(9001 + i, 1920 * 5 * i, 0, 1920 * 5 * (i + 1), 1080 * 20))
 
 
-def has_collision_with_borders(player: Player.player, zone: Zone_server.zone_server) -> bool:
-    return not (zone.top_left_pos.x + 1920 - 1 < player.pos.x < zone.bottom_right_pos.x - 1920 + 1)
+def has_collision_with_borders(P: player, zone: Zone_server.zone_server) -> bool:
+    return not (zone.top_left_pos.x + 1920 - 1 < P.collision_center.x < zone.bottom_right_pos.x - 1920 + 1)
 
 
 def is_distribution_equal() -> bool:
@@ -81,14 +97,20 @@ def balance_equaliser():
         BORDERS.append(0)
 
 
-def get_x_of_player(player: Player.player) -> int:
-    return player.pos.x
+def move_player(game_server_x_client: socket.socket, P: player):
+    while P in ACTIVE_PLAYERS:
+        if P.x_dir or P.y_dir:
+            if P.move():
+                to_send = b'cii$$' + struct.pack("cii", "M".encode(), *P.collision_center.to_tuple())
+                game_server_x_client.sendto(to_send, P.address)
 
 
 def main():
     game_server_x_client, game_server_x_central_server = init_game_server()
-    handle_request_from_central(game_server_x_central_server)
+    handle_request_from_central(game_server_x_client, game_server_x_central_server)
     handle_request_from_player(game_server_x_client)
+    while True:
+        pass
 
 
 if __name__ == '__main__':

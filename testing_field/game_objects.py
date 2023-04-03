@@ -1,16 +1,7 @@
 import time
 import pygame
-from Classes import Point
+from clients.Client_classes.client_objects import point
 import math
-
-ENABLE = True
-TILE_SIZE = 120
-HIT_BOX_SIZE = 144
-TILED_MAP_WIDTH = 319
-TILED_MAP_HEIGHT = 179
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
 
 
 class animation:
@@ -41,7 +32,7 @@ class animation:
 
 
 class player:
-    def __init__(self, dot: Point.point = Point.point(0, 0)):
+    def __init__(self, dot: point = point(0, 0)):
         self.animations: dict = {
             "idle": animation("shotgun/idle/survivor-idle_shotgun_", 20, .05),
             "move": animation("shotgun/move/survivor-move_shotgun_", 20, .075),
@@ -49,7 +40,7 @@ class player:
             "shoot": animation("shotgun/shoot/survivor-shoot_shotgun_", 3, .0833)
         }
         self.status: str = "idle"
-        self.collision_center: Point.point = dot
+        self.collision_center: point = dot
         self.x_dir: int = 0
         self.y_dir: int = 0
         self.angle: int = 0
@@ -129,7 +120,7 @@ class laser:
         return False
 
 
-def pos_by_distance_and_angle(player_angle: float, angle_const: float, distance: float, collision_center: Point.point) -> tuple:
+def pos_by_distance_and_angle(player_angle: float, angle_const: float, distance: float, collision_center: point) -> tuple:
     angle = (angle_const - player_angle) * math.pi / 180
     m = math.tan(angle)
     x = distance / math.sqrt(1 + m ** 2) + collision_center.x
