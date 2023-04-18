@@ -1,17 +1,19 @@
-import socket
-import math
-import struct
-import time
 from threading import Thread
-from Server_classes.server_objects import *
 from testing_field import Zone_server
+from Server_classes.server_objects import *
+from Server_classes.logic_functions import *
+import logging
+import socket
+import json
+import math
+import time
 
 ACTIVE_PLAYERS = []
 BORDERS = [0]
 IPS = []
 ZONE_LIST = []
-directions_x: dict = {"right": 1, "left": -1}
-directions_y: dict = {"up": -1, "down": 1}
+directions_x: dict = {b"right": 1, b"left": -1}
+directions_y: dict = {b"up": -1, b"down": 1}
 
 
 def init_game_server() -> tuple:
@@ -19,38 +21,49 @@ def init_game_server() -> tuple:
     game_server_x_client.bind(("0.0.0.0", 8301))
     game_server_x_central_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     game_server_x_central_server.bind(("0.0.0.0", 8302))
-    game_server_x_central_server.sendto("XJ9".encode(), ("127.0.0.1", 8102))
-    game_server_x_client.sendto("YJ9".encode(), ("127.0.0.1", 8102))
+    game_server_x_central_server.sendto(b"XJ9", ("127.0.0.1", 8102))
+    game_server_x_client.sendto(b"YJ9", ("127.0.0.1", 8102))
     return game_server_x_client, game_server_x_central_server
 
 
-def handle_request_from_central(game_server_x_client: socket.socket, game_server_x_central_server: socket.socket):
+def receive_and_handle_request_from_central(game_server_x_client: socket.socket,
+                                            game_server_x_central_server: socket.socket):
     data = game_server_x_central_server.recvfrom(1024)[0].decode().split(", ")
-    Thread(target=handle_request_from_central, args=(game_server_x_client, game_server_x_central_server)).start()
+    Thread(target=receive_and_handle_request_from_central,
+           args=(game_server_x_client, game_server_x_central_server)).start()
     IPS.append((data[0][2:-1], int(data[1][:-1])))
-    ACTIVE_PLAYERS.append(player(data[2], (data[0][2:-1], int(data[1][:-1]))))
-    Thread(target=move_player, args=(game_server_x_client, ACTIVE_PLAYERS[-1])).start()
+    ACTIVE_PLAYERS.append(ServerPlayer(data[2], (data[0][2:-1], int(data[1][:-1]))))
+    ACTIVE_PLAYERS[-1].collision_center = Point(200, 200)
 
 
-def handle_request_from_player(game_server_x_client: socket.socket):
-    data, ip = game_server_x_client.recvfrom(1024)
-    Thread(target=handle_request_from_player, args=(game_server_x_client,)).start()
-    data = data.decode()
-    if ip not in IPS or data == "Begin":
-        return
-    P = ACTIVE_PLAYERS[IPS.index(ip)]
-    action_type, direction = data.split(" ")
-    match action_type:
-        case "press":
-            if direction in directions_x:
-                P.x_dir = directions_x[direction]
-            else:
-                P.y_dir = directions_y[direction]
-        case "release":
-            if direction in directions_x:
-                P.x_dir = 0
-            else:
-                P.y_dir = 0
+def receive_packet_from_player(game_server_x_client: socket.socket):
+    while True:
+        try:
+            data, ip = game_server_x_client.recvfrom(1024)
+            msg = json.loads(data.decode())
+            print(msg)
+            if ip not in IPS or msg["cmd"] == "begin":
+                logging.debug("Packet has reached server and is now being filtered")
+            P: ServerPlayer = ACTIVE_PLAYERS[IPS.index(ip)]
+            match msg["cmd"]:
+                case "press":
+                    dir = msg["key_stroke"]
+                    if dir in directions_x:
+                        P.x_dir = directions_x[dir]
+                    elif dir in directions_y:
+                        P.y_dir = directions_y[dir]
+                    elif dir == "reload":
+                        pass
+                case "release":
+                    dir = msg["key_stroke"]
+                    if dir in directions_x:
+                        P.x_dir = 0
+                    elif dir in directions_y:
+                        P.y_dir = 0
+                case "add":
+                    P.json_str = msg["player_to_add"]
+        except Exception as e:
+            logging.debug("Exception found in receive_packet")
 
 
 def init_zones(server_amount: int):
@@ -58,7 +71,7 @@ def init_zones(server_amount: int):
         ZONE_LIST.append(Zone_server.zone_server(9001 + i, 1920 * 5 * i, 0, 1920 * 5 * (i + 1), 1080 * 20))
 
 
-def has_collision_with_borders(P: player, zone: Zone_server.zone_server) -> bool:
+def has_collision_with_borders(P: ServerPlayer, zone: Zone_server.zone_server) -> bool:
     return not (zone.top_left_pos.x + 1920 - 1 < P.collision_center.x < zone.bottom_right_pos.x - 1920 + 1)
 
 
@@ -97,18 +110,24 @@ def balance_equaliser():
         BORDERS.append(0)
 
 
-def move_player(game_server_x_client: socket.socket, P: player):
+def move_player(game_server_x_client: socket.socket, P: ServerPlayer):
     while P in ACTIVE_PLAYERS:
         if P.x_dir or P.y_dir:
-            if P.move():
-                to_send = b'cii$$' + struct.pack("cii", "M".encode(), *P.collision_center.to_tuple())
-                game_server_x_client.sendto(to_send, P.address)
+            if check_collision(P):
+                if P.move():
+                    time.sleep(.001)
+                    msg = {
+                        "cmd": 'move',
+                        "pos": P.collision_center.to_tuple()
+                    }
+                    game_server_x_client.sendto(json.dumps(msg).encode(), P.address)
 
 
 def main():
     game_server_x_client, game_server_x_central_server = init_game_server()
-    handle_request_from_central(game_server_x_client, game_server_x_central_server)
-    handle_request_from_player(game_server_x_client)
+    receive_and_handle_request_from_central(game_server_x_client, game_server_x_central_server)
+    Thread(target=receive_packet_from_player, args=(game_server_x_client,)).start()
+    Thread(target=move_player, args=(game_server_x_client, ACTIVE_PLAYERS[-1])).start()
     while True:
         pass
 

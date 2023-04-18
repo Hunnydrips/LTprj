@@ -3,7 +3,7 @@ import time
 import math
 
 
-class point:
+class Point:
     def __init__(self, x: int, y: int):
         self.x, self.y = x, y
 
@@ -41,8 +41,8 @@ class animation:
         return False
 
 
-class player:
-    def __init__(self, dot: point = point(0, 0)):
+class ClientPlayer:
+    def __init__(self, dot: Point = Point(0, 0)):
         self.animations: dict = {
             "idle": animation("Client_classes/shotgun/idle/survivor-idle_shotgun_", 20, .05),
             "move": animation("Client_classes/shotgun/move/survivor-move_shotgun_", 20, .075),
@@ -50,7 +50,7 @@ class player:
             "shoot": animation("Client_classes/shotgun/shoot/survivor-shoot_shotgun_", 3, .0833)
         }
         self.status: str = "idle"
-        self.collision_center: point = dot
+        self.collision_center: Point = dot
         self.x_dir: int = 0
         self.y_dir: int = 0
         self.angle: int = 0
@@ -75,7 +75,7 @@ class player:
             self.last_shot = time.time()
             self.left_in_magazine -= 1
             self.lasers.append(
-                laser(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center), mouse_x, mouse_y))
+                Laser(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center), mouse_x, mouse_y))
             print(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center))
             self.status = "shoot"
             self.animations[self.status].reset()
@@ -85,7 +85,7 @@ class player:
         self.left_in_magazine = 6
 
 
-class laser:
+class Laser:
     def __init__(self, x: float, y: float, target_x: int, target_y: int):
         self.x: float = x
         self.y: float = y
@@ -129,7 +129,7 @@ class laser:
 
 
 def pos_by_distance_and_angle(player_angle: float, angle_const: float, distance: float,
-                              collision_center: point) -> tuple:
+                              collision_center: Point) -> tuple:
     angle = (angle_const - player_angle) * math.pi / 180
     m = math.tan(angle)
     x = distance / math.sqrt(1 + m ** 2) + collision_center.x

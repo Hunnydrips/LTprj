@@ -113,7 +113,7 @@ def sign_up_screen():
     Label(root, image=image, background="white").place(x=0, y=0)
     frm = Frame(root, width=350, height=400, bg="white")
     frm.place(x=480, y=70)
-    heading = Label(frm, text="Sign-in", fg="#57a1f8", bg="white", font=("Microsoft YaHei UI Light", 23, "bold"))
+    heading = Label(frm, text="Sign-up", fg="#57a1f8", bg="white", font=("Microsoft YaHei UI Light", 23, "bold"))
     heading.place(x=100, y=5)
 
     def validate_password(username, password, confirm_password):

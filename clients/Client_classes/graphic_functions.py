@@ -10,7 +10,7 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 TILES = []
-COLLIDE_LIST = [point(2, 8), point(5, 9)]
+COLLIDE_LIST = [Point(2, 8), Point(5, 9)]
 
 
 def paint_map(screen: pygame.Surface):
@@ -21,18 +21,18 @@ def paint_map(screen: pygame.Surface):
     top_left_tile_y = camera_y // TILE_SIZE
     for i in range(screen.get_width() // TILE_SIZE + 2):
         for j in range(screen.get_height() // TILE_SIZE + 2):
-            top_left_tile = point(top_left_tile_x + i, top_left_tile_y + j)
+            top_left_tile = Point(top_left_tile_x + i, top_left_tile_y + j)
             if top_left_tile in COLLIDE_LIST or (
                     (top_left_tile_x + i) % TILED_MAP_WIDTH == 0 and 0 <= top_left_tile_y + j <= TILED_MAP_HEIGHT) or (
                     (top_left_tile_y + j) % TILED_MAP_HEIGHT == 0 and 0 <= top_left_tile_x + i <= TILED_MAP_WIDTH):
                 tile_pos = (i * TILE_SIZE - to_add_x, j * TILE_SIZE - to_add_y)
-                if top_left_tile == point(0, 0):
+                if top_left_tile == Point(0, 0):
                     screen.blit(TILES[4], tile_pos)
-                elif top_left_tile == point(0, TILED_MAP_HEIGHT):
+                elif top_left_tile == Point(0, TILED_MAP_HEIGHT):
                     screen.blit(TILES[7], tile_pos)
-                elif top_left_tile == point(TILED_MAP_WIDTH, 0):
+                elif top_left_tile == Point(TILED_MAP_WIDTH, 0):
                     screen.blit(TILES[5], tile_pos)
-                elif top_left_tile == point(TILED_MAP_WIDTH, TILED_MAP_HEIGHT):
+                elif top_left_tile == Point(TILED_MAP_WIDTH, TILED_MAP_HEIGHT):
                     screen.blit(TILES[6], tile_pos)
                 elif top_left_tile.y % TILED_MAP_HEIGHT == 0:
                     screen.blit(TILES[1], tile_pos)
@@ -44,7 +44,7 @@ def paint_map(screen: pygame.Surface):
                 screen.blit(TILES[0], (i * TILE_SIZE - to_add_x, j * TILE_SIZE - to_add_y))
 
 
-def update_camera_cords(screen: pygame.Surface, player_pos: point):
+def update_camera_cords(screen: pygame.Surface, player_pos: Point):
     global camera_x
     global camera_y
     camera_x, camera_y = player_pos.to_tuple()
@@ -58,23 +58,24 @@ def update_camera_cords(screen: pygame.Surface, player_pos: point):
         camera_x = 1920 * 20 - screen.get_width()
     if camera_y > 1080 * 20 - screen.get_height():
         camera_y = 1080 * 20 - screen.get_height()
-    print(camera_x, camera_y)
+    # print(camera_x, camera_y)
 
 
 def get_camera_coordinates() -> tuple:
     return camera_x, camera_y
 
 
-def blit_player(screen: pygame.Surface, P: player, mouse_x: int, mouse_y: int):
+def blit_player(screen: pygame.Surface, P: ClientPlayer, mouse_x: int, mouse_y: int):
     P.create_image(mouse_x + camera_x, mouse_y + camera_y)
     P.hit_box.center = P.collision_center.x - camera_x, P.collision_center.y - camera_y
     screen.blit(P.to_blit, P.hit_box)
 
 
-def animate_player(P: player):
+def animate_player(P: ClientPlayer):
     if P.animations[P.status].animate() and P.status != "move":
         P.status = P.next_status
         P.next_status = "idle"
         if not P.left_in_magazine:
             P.reload()
         P.animations[P.status].reset()
+
