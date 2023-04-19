@@ -68,23 +68,19 @@ def receive_request_from_game_server(client_x_everything: socket.socket, P: Clie
             P.collision_center = Point(x, y)
         if msg["cmd"] == "load":
             for json_str in msg["json_strs"]:
-                print(json_str)
                 attr_dict: dict = json.loads(json_str)
-                player_to_display: ClientPlayer = ClientPlayer()
-                player_to_display.collision_center = Point(attr_dict["pos"][0], attr_dict["pos"][1])
-                player_to_display.angle = attr_dict["angle"]
-                player_to_display.status = attr_dict["status"]
-                player_to_display.username = attr_dict["name"]
-                player_to_display.animations[player_to_display.status].current_sprite = attr_dict["current_sprite"]
-                players_to_display.append(player_to_display)
+                player_to_add: ClientPlayer = ClientPlayer()
+                player_to_add.collision_center = Point(attr_dict["pos"][0], attr_dict["pos"][1])
+                player_to_add.angle = attr_dict["angle"]
+                player_to_add.status = attr_dict["status"]
+                player_to_add.username = attr_dict["name"]
+                player_to_add.animations[player_to_add.status].current_sprite = attr_dict["current_sprite"]
+                players_to_display.append(player_to_add)
                 logging.debug("An exterior player has been added to the list, show him if needed")
-                display_players(player_to_display.angle)
+                display_players(player_to_add.angle)
 
 
 def display_players(angle: float):
-    """
-    A function practically for displaying players on the screen, needs their positional angle
-    """
     for player in players_to_display:
         animate_player(player)
         blit_player(screen, player, angle)
@@ -120,7 +116,7 @@ def main():
         "pos": P.collision_center.to_tuple(),
         "angle": P.angle,
         "status": P.status,
-        "name": "Bob",
+        "name": "Alice",
         "current_sprite": P.animations[P.status].current_sprite
     }
     packet_data = json.dumps(player_attr)
@@ -141,11 +137,12 @@ def main():
                     match event.key:
                         case pygame.K_r:
                             P.reload()
+                    msg: dict = {
+                        "cmd": ...,
+                        "key_stroke": event_to_packet[event.key][0]
+                    }
                     if event.key in event_to_packet:
-                        msg: dict = {
-                            "cmd": "press",
-                            "key_stroke": event_to_packet[event.key][0]
-                        }
+                        msg["cmd"] = "press"
                         client_x_everything.sendto(json.dumps(msg).encode(), game_server_ip)
                         if event.key in list(event_to_packet.keys())[:2]:
                             P.x_dir = event_to_packet[event.key][1]
@@ -154,10 +151,7 @@ def main():
                         logging.debug("A key has been pressed and sent to the server")
                 case pygame.KEYUP:
                     if event.key in event_to_packet:
-                        msg: dict = {
-                            "cmd": "release",
-                            "key_stroke": event_to_packet[event.key][0]
-                        }
+                        msg["cmd"] = "release"
                         client_x_everything.sendto(json.dumps(msg).encode(), game_server_ip)
                         if event.key in list(event_to_packet.keys())[:2]:
                             P.x_dir = 0
@@ -165,15 +159,14 @@ def main():
                             P.y_dir = 0
                         logging.debug("A key has been released and sent to the server")
                 case pygame.MOUSEBUTTONDOWN:
-                    # client-sided
+                    # client-sided for now
                     if event.button == pygame.BUTTON_LEFT:
                         c_x, c_y = get_camera_coordinates()
                         P.shoot(pygame.mouse.get_pos()[0] + c_x, pygame.mouse.get_pos()[1] + c_y)
-        c_x, c_y = get_camera_coordinates()
         paint_map(screen)
         animate_player(P)
         mouse_x, mouse_y = pygame.mouse.get_pos()
-        blit_player(screen, P, math.atan2(mouse_y - P.collision_center.y + c_y, mouse_x - P.collision_center.x + c_x))
+        blit_player(screen, P, math.atan2(mouse_y, mouse_x) * math.pi / 180)
         move_all_lasers(P)
         clock.tick(60)
         pygame.display.update()

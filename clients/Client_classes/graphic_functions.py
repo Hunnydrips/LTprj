@@ -65,8 +65,8 @@ def get_camera_coordinates() -> tuple:
     return camera_x, camera_y
 
 
-def blit_player(screen: pygame.Surface, P: ClientPlayer, mouse_x: int, mouse_y: int):
-    P.create_image(mouse_x + camera_x, mouse_y + camera_y)
+def blit_player(screen: pygame.Surface, P: ClientPlayer, angle: float):
+    P.create_image(angle=angle)
     P.hit_box.center = P.collision_center.x - camera_x, P.collision_center.y - camera_y
     screen.blit(P.to_blit, P.hit_box)
 

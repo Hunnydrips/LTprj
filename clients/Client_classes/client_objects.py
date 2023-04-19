@@ -14,7 +14,7 @@ class Point:
         return self.x, self.y
 
 
-class animation:
+class Animation:
     def __init__(self, path: str, amount: int, time_per_sprite: float):
         self.path: str = path
         self.sprite_list: list = []
@@ -44,16 +44,17 @@ class animation:
 class ClientPlayer:
     def __init__(self, dot: Point = Point(0, 0)):
         self.animations: dict = {
-            "idle": animation("Client_classes/shotgun/idle/survivor-idle_shotgun_", 20, .05),
-            "move": animation("Client_classes/shotgun/move/survivor-move_shotgun_", 20, .075),
-            "reload": animation("Client_classes/shotgun/reload/survivor-reload_shotgun_", 20, .075),
-            "shoot": animation("Client_classes/shotgun/shoot/survivor-shoot_shotgun_", 3, .0833)
+            "idle": Animation("Client_classes/shotgun/idle/survivor-idle_shotgun_", 20, .05),
+            "move": Animation("Client_classes/shotgun/move/survivor-move_shotgun_", 20, .075),
+            "reload": Animation("Client_classes/shotgun/reload/survivor-reload_shotgun_", 20, .075),
+            "shoot": Animation("Client_classes/shotgun/shoot/survivor-shoot_shotgun_", 3, .0833)
         }
         self.status: str = "idle"
+        self.username: str = "Alice"
         self.collision_center: Point = dot
+        self.angle: float = 0
         self.x_dir: int = 0
         self.y_dir: int = 0
-        self.angle: int = 0
         self.last_shot: int = 0
         self.next_status: str = "idle"
         self.left_in_magazine: int = 6
@@ -61,8 +62,8 @@ class ClientPlayer:
         self.to_blit = None
         self.hit_box = None
 
-    def create_image(self, mouse_x: int, mouse_y: int):
-        self.angle = math.atan2(float(mouse_y - self.collision_center.y), float(mouse_x - self.collision_center.x))
+    def create_image(self, angle: float):           # angle is in radians
+        self.angle = angle
         self.angle *= -180 / math.pi
         self.angle += 4.5
         self.to_blit = pygame.transform.rotate(
@@ -75,7 +76,7 @@ class ClientPlayer:
             self.last_shot = time.time()
             self.left_in_magazine -= 1
             self.lasers.append(
-                Laser(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center), mouse_x, mouse_y))
+                ClientLaser(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center), mouse_x, mouse_y))
             print(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center))
             self.status = "shoot"
             self.animations[self.status].reset()
@@ -85,7 +86,7 @@ class ClientPlayer:
         self.left_in_magazine = 6
 
 
-class Laser:
+class ClientLaser:
     def __init__(self, x: float, y: float, target_x: int, target_y: int):
         self.x: float = x
         self.y: float = y

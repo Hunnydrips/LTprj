@@ -12,8 +12,8 @@ ACTIVE_PLAYERS = []
 BORDERS = [0]
 IPS = []
 ZONE_LIST = []
-directions_x: dict = {b"right": 1, b"left": -1}
-directions_y: dict = {b"up": -1, b"down": 1}
+directions_x: dict = {"right": 1, "left": -1}
+directions_y: dict = {"up": -1, "down": 1}
 
 
 def init_game_server() -> tuple:
@@ -54,6 +54,8 @@ def receive_packet_from_player(game_server_x_client: socket.socket):
                         P.y_dir = directions_y[dir]
                     elif dir == "reload":
                         pass
+                    else:
+                        logging.debug("Key is not in list, ignoring keystroke")
                 case "release":
                     dir = msg["key_stroke"]
                     if dir in directions_x:
@@ -62,8 +64,9 @@ def receive_packet_from_player(game_server_x_client: socket.socket):
                         P.y_dir = 0
                 case "add":
                     P.json_str = msg["player_to_add"]
+                    print(P.json_str)
         except Exception as e:
-            logging.debug("Exception found in receive_packet")
+            logging.debug(f"Exception found in receive_packet, error code: {e}")
 
 
 def init_zones(server_amount: int):
@@ -110,24 +113,36 @@ def balance_equaliser():
         BORDERS.append(0)
 
 
-def move_player(game_server_x_client: socket.socket, P: ServerPlayer):
+def send_position_to_client(game_server_x_client: socket.socket, P: ServerPlayer):
     while P in ACTIVE_PLAYERS:
         if P.x_dir or P.y_dir:
             if check_collision(P):
                 if P.move():
                     time.sleep(.001)
-                    msg = {
+                    msg: dict = {
                         "cmd": 'move',
                         "pos": P.collision_center.to_tuple()
                     }
                     game_server_x_client.sendto(json.dumps(msg).encode(), P.address)
 
 
+def send_players_images_to_client(game_server_x_client: socket.socket, P: ServerPlayer):
+    while P in ACTIVE_PLAYERS:
+        msg: dict = {
+            "cmd": "load",
+            "json_strs": []
+        }
+        for player in ACTIVE_PLAYERS:
+            if abs(player.collision_center.x - P.collision_center.x) < 700 and abs(player.collision_center.y - P.collision_center.y) < 700:
+                msg["json_strs"].append(player.json_str)
+        game_server_x_client.sendto(json.dumps(msg).encode(), P.address)
+
+
 def main():
     game_server_x_client, game_server_x_central_server = init_game_server()
     receive_and_handle_request_from_central(game_server_x_client, game_server_x_central_server)
     Thread(target=receive_packet_from_player, args=(game_server_x_client,)).start()
-    Thread(target=move_player, args=(game_server_x_client, ACTIVE_PLAYERS[-1])).start()
+    Thread(target=send_position_to_client, args=(game_server_x_client, ACTIVE_PLAYERS[-1])).start()
     while True:
         pass
 

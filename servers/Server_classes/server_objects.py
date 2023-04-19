@@ -31,7 +31,7 @@ class ServerPlayer:
         return False
 
 
-class Laser:
+class ServerLaser:
     def __init__(self, start_x: float, start_y: float, angle: float):
         self.x: float = start_x
         self.y: float = start_y
