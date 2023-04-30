@@ -1,3 +1,4 @@
+from random import randint
 import pygame
 import time
 import math
@@ -42,21 +43,21 @@ class Animation:
 
 
 class ClientPlayer:
-    def __init__(self, dot: Point = Point(0, 0)):
+    def __init__(self, username: str, pos: Point = Point(250, 250), status: str = "idle", angle: float = 0):
         self.animations: dict = {
             "idle": Animation("Client_classes/shotgun/idle/survivor-idle_shotgun_", 20, .05),
             "move": Animation("Client_classes/shotgun/move/survivor-move_shotgun_", 20, .075),
             "reload": Animation("Client_classes/shotgun/reload/survivor-reload_shotgun_", 20, .075),
             "shoot": Animation("Client_classes/shotgun/shoot/survivor-shoot_shotgun_", 3, .0833)
         }
-        self.status: str = "idle"
-        self.username: str = "Alice"
-        self.collision_center: Point = dot
-        self.angle: float = 0
+        self.collision_center: Point = pos
+        self.angle: float = angle
+        self.username = username
+        self.status = status
+        self.next_status: str = "idle"
         self.x_dir: int = 0
         self.y_dir: int = 0
         self.last_shot: int = 0
-        self.next_status: str = "idle"
         self.left_in_magazine: int = 6
         self.lasers: list = []
         self.to_blit = None
@@ -66,10 +67,9 @@ class ClientPlayer:
         self.angle = angle
         self.angle *= -180 / math.pi
         self.angle += 4.5
-        self.to_blit = pygame.transform.rotate(
-            self.animations[self.status].sprite_list[self.animations[self.status].current_sprite], self.angle)
+        self.to_blit = pygame.transform.rotate(self.animations[self.status].sprite_list[self.animations[self.status].current_sprite], self.angle)
         self.hit_box = self.to_blit.get_rect()
-        self.hit_box.center = pos_by_distance_and_angle(self.angle, -18.08, -51, self.collision_center)
+        self.hit_box.center = pos_by_distance_and_angle(self.angle, -18.08, -52, self.collision_center)
 
     def shoot(self, mouse_x: int, mouse_y: int):
         if self.status != "reload" and self.last_shot + 0.25 <= time.time() and self.left_in_magazine:
@@ -100,7 +100,6 @@ class ClientLaser:
         self.angle *= -180 / math.pi
         self.state: int = 0
         self.frames_R: list = []
-        self.frames_P: list = []
         self.rect = None
         self.to_blit = None
         self.load()
@@ -108,7 +107,6 @@ class ClientLaser:
     def load(self):
         for i in range(2):
             self.frames_R.append(pygame.image.load(f"Client_classes/Lasers/R{i}.png"))
-            self.frames_P.append(pygame.image.load(f"Client_classes/Lasers/P{i}.png"))
 
     def move(self) -> bool:
         if self.creation_time + 2 <= time.time():
@@ -129,8 +127,7 @@ class ClientLaser:
         return False
 
 
-def pos_by_distance_and_angle(player_angle: float, angle_const: float, distance: float,
-                              collision_center: Point) -> tuple:
+def pos_by_distance_and_angle(player_angle: float, angle_const: float, distance: float, collision_center: Point) -> tuple:
     angle = (angle_const - player_angle) * math.pi / 180
     m = math.tan(angle)
     x = distance / math.sqrt(1 + m ** 2) + collision_center.x

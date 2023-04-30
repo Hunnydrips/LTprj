@@ -1,9 +1,10 @@
-import socket
-import hashlib
-import sqlite3
 from threading import Thread
+from hashlib import sha256
+import socket
+import sqlite3
 
 USER_IPS = []
+CENTRAL_ADDR = ("127.0.0.1", 8101)
 
 
 def is_list_in_other_list(l1: list, l2: list) -> bool:
@@ -29,8 +30,8 @@ def init_login_server() -> tuple:
     login_server_x_client.bind(("0.0.0.0", 8201))
     login_server_x_central_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     login_server_x_central_server.bind(("0.0.0.0", 8202))
-    login_server_x_central_server.sendto("3!a".encode(), ("127.0.0.1", 8101))
-    login_server_x_client.sendto("3!b".encode(), ("127.0.0.1", 8101))           # only time it has to access central_server
+    login_server_x_central_server.sendto(b"3!a", CENTRAL_ADDR)
+    login_server_x_client.sendto(b"3!b", CENTRAL_ADDR)  # only time it has to access central_server
     return login_server_x_client, login_server_x_central_server
 
 
@@ -38,17 +39,18 @@ def handle_input_from_central(login_server_x_central_server: socket.socket()) ->
     data, ip = login_server_x_central_server.recvfrom(1024)
     data = data.decode()[1:-1].split(", ")
     USER_IPS.append((data[0][1:-1], int(data[1])))
-    Thread(target=handle_input_from_central, args=(login_server_x_central_server, )).start()
+    Thread(target=handle_input_from_central, args=(login_server_x_central_server,)).start()
 
 
-def handle_input_from_client(login_server_x_client: socket.socket(), login_server_x_central_server: socket.socket()) -> None:
+def handle_input_from_client(login_server_x_client: socket.socket(),
+                             login_server_x_central_server: socket.socket()) -> None:
     conn = sqlite3.connect("I_hate_sql.db")
     cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS users (name_hash_hash TEXT, password_hash_hash TEXT)")
     data, ip = login_server_x_client.recvfrom(1024)
     if ip in USER_IPS:
         name, password_hash, flag = data.decode().split("$")
-        name_hash, password_hash_hash = hashlib.sha256(name.encode()).hexdigest(), hashlib.sha256(password_hash.encode()).hexdigest()
+        name_hash, password_hash_hash = sha256(name.encode()).hexdigest(), sha256(password_hash.encode()).hexdigest()
         to_send = 'Incorrect data'
         match flag:
             case "log_in":
@@ -67,7 +69,7 @@ def handle_input_from_client(login_server_x_client: socket.socket(), login_serve
                     to_send = "This username has been already taken"
         login_server_x_client.sendto(to_send.encode(), ip)
         if to_send in ["log_in successful", "Created username successfully"]:
-            login_server_x_central_server.sendto(f"This user has been verified, {ip}, {name}".encode(), ("127.0.0.1", 8101))
+            login_server_x_central_server.sendto(f"This user has been verified, {ip}, {name}".encode(), CENTRAL_ADDR)
     Thread(target=handle_input_from_client, args=(login_server_x_client, login_server_x_central_server)).start()
 
 
@@ -80,7 +82,6 @@ def main():
     login_server_x_central_server.close()
     login_server_x_client.close()
     cursor.execute('SELECT * FROM users')
-    print(cursor.fetchall())
     conn.close()
 
 
