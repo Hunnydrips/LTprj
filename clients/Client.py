@@ -19,7 +19,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 def init_settings():
     """
-    function whose sole purpose is to demonstrate the info that is being put into the database
+    Initialise settings, sole purpose of this func is to show what's happening inside the DB
+    :return: Nothing
     """
     with open("settings.txt", 'a'):
         pass  # ensuring the file's existence
@@ -30,6 +31,10 @@ def init_settings():
 
 
 def log_in() -> Tuple[socket.socket, Tuple[str, int]]:  # connection to central so to have the ip of login server
+    """
+    Log-in function, separates duality and accepts players
+    :return: Player socket and game server address
+    """
     client_x_everything = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_x_everything.sendto(b"log_requested", CENTRAL_ADDR)
     data = client_x_everything.recvfrom(1024)[0].decode()[1:-1].split(", ")
@@ -44,7 +49,13 @@ def log_in() -> Tuple[socket.socket, Tuple[str, int]]:  # connection to central 
     return client_x_everything, game_server_ip
 
 
-def log_in_or_sign_up(client_x_everything: socket.socket(), login_server_ip: tuple) -> bool:
+def log_in_or_sign_up(client_x_everything: socket.socket, login_server_ip: tuple) -> bool:
+    """
+    Check player's need at beginning
+    :param client_x_everything: player socket
+    :param login_server_ip: log-in socket and ip
+    :return: logged in or not
+    """
     name_hash, password_hash, flag = "", "", ""
     with open("settings.txt", 'r') as f:
         data = f.read().split("\n")
@@ -63,9 +74,12 @@ def log_in_or_sign_up(client_x_everything: socket.socket(), login_server_ip: tup
         return True
 
 
-def receive_request_from_game_server(client_x_everything: socket.socket, P: ClientPlayer):
+def handle_packet_from_game_server(client_x_everything: socket.socket, P: ClientPlayer):
     """
-    Receive function for client, receives socket and player
+    Handle packets coming from game server
+    :param client_x_everything: player socket
+    :param P: player object
+    :return: Nothing
     """
     while True:
         data, ip = client_x_everything.recvfrom(1024)
@@ -96,7 +110,8 @@ def receive_request_from_game_server(client_x_everything: socket.socket, P: Clie
 
 def display_players():
     """
-    A function practically for displaying players on the screen, needs their positional angle
+    Minor shortening so to explain work and effort, consider errors in this funcs that may happen and how to handle them
+    :return: Nothing
     """
     print(len(players_to_display))
     for player in players_to_display:
@@ -112,7 +127,11 @@ def display_players():
 
 def send_json_str_to_server(client_x_everything: socket.socket, game_server_ip: tuple, P: ClientPlayer):
     """
-    Format the json_str so to send it to server
+    Send player details to server so to have a connected game with all players available
+    :param client_x_everything: player socket
+    :param game_server_ip: game server socket and ip
+    :param P: player object
+    :return: Nothing
     """
     while True:
         player_attr: dict = {
@@ -132,6 +151,11 @@ def send_json_str_to_server(client_x_everything: socket.socket, game_server_ip: 
 
 
 def move_all_lasers(P: ClientPlayer):
+    """
+    Move each player's laser on their screens
+    :param P: player object
+    :return: Nothing
+    """
     c_x, c_y = get_camera_coordinates()
     for P_laser in P.lasers:
         if P_laser.move():
@@ -155,7 +179,7 @@ def main():
     pygame.init()
     clock = pygame.time.Clock()
     P = ClientPlayer("Bob")
-    Thread(target=receive_request_from_game_server, args=(client_x_everything, P)).start()
+    Thread(target=handle_packet_from_game_server, args=(client_x_everything, P)).start()
     Thread(target=send_json_str_to_server, args=(client_x_everything, game_server_ip, P)).start()
     running = True
     while running:

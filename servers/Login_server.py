@@ -8,10 +8,20 @@ CENTRAL_ADDR = ("127.0.0.1", 8101)
 
 
 def is_list_in_other_list(l1: list, l2: list) -> bool:
+    """
+    :param l1: List 1
+    :param l2: List 2
+    :return: if one list contains the other
+    """
     return str(l1)[1:-1].__contains__(str(l2)[1:-1])
 
 
 def in_table(items: list, cur) -> bool:
+    """
+    :param items: objects inside table
+    :param cur: cursor object (SQL)
+    :return: if a row exists in items
+    """
     x = '*'
     if len(items) == 1:
         x = 'name_hash_hash'
@@ -26,6 +36,10 @@ def in_table(items: list, cur) -> bool:
 
 
 def init_login_server() -> tuple:
+    """
+    Initialise :D
+    :return: login server and client socket, and login server and central server socket
+    """
     login_server_x_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     login_server_x_client.bind(("0.0.0.0", 8201))
     login_server_x_central_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -35,15 +49,24 @@ def init_login_server() -> tuple:
     return login_server_x_client, login_server_x_central_server
 
 
-def handle_input_from_central(login_server_x_central_server: socket.socket()) -> None:
+def handle_input_from_central(login_server_x_central_server: socket.socket()):
+    """
+    Central handling for getting client
+    :param login_server_x_central_server: login server and central server socket
+    :return: Nothing, eternal loop using a thread
+    """
     data, ip = login_server_x_central_server.recvfrom(1024)
     data = data.decode()[1:-1].split(", ")
     USER_IPS.append((data[0][1:-1], int(data[1])))
     Thread(target=handle_input_from_central, args=(login_server_x_central_server,)).start()
 
 
-def handle_input_from_client(login_server_x_client: socket.socket(),
-                             login_server_x_central_server: socket.socket()) -> None:
+def handle_input_from_client(login_server_x_client: socket.socket(), login_server_x_central_server: socket.socket()):
+    """
+    :param login_server_x_client: login server and client socket
+    :param login_server_x_central_server: login server and central server socket
+    :return: Nothing
+    """
     conn = sqlite3.connect("I_hate_sql.db")
     cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS users (name_hash_hash TEXT, password_hash_hash TEXT)")

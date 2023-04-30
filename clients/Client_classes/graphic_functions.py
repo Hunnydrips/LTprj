@@ -10,7 +10,7 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 TILES = []
-COLLIDE_LIST = [Point(2, 8), Point(5, 9)]
+COLLIDE_LIST = [Point(2, 8), Point(5, 9)]               # example set for examination
 
 
 def paint_map(screen: pygame.Surface):
