@@ -14,6 +14,11 @@ COLLIDE_LIST = [Point(2, 8), Point(5, 9)]               # example set for examin
 
 
 def paint_map(screen: pygame.Surface):
+    """
+    Big function, paints the WHOLE map
+    :param screen: surface of map
+    :return: Nothing
+    """
     for i in range(9):                                                  # Load the tile images
         TILES.append(pygame.image.load(f"Client_classes/map_tiles/tile_{i}.png"))
     to_add_x, to_add_y = camera_x % TILE_SIZE, camera_y % TILE_SIZE
@@ -45,6 +50,12 @@ def paint_map(screen: pygame.Surface):
 
 
 def update_camera_cords(screen: pygame.Surface, player_pos: Point):
+    """
+    Updates camera coordinates, simplifications of some sorts are given by this func
+    :param screen: surface of map
+    :param player_pos: current player position
+    :return: Nothing
+    """
     global camera_x
     global camera_y
     camera_x, camera_y = player_pos.to_tuple()
@@ -58,20 +69,35 @@ def update_camera_cords(screen: pygame.Surface, player_pos: Point):
         camera_x = 1920 * 20 - screen.get_width()
     if camera_y > 1080 * 20 - screen.get_height():
         camera_y = 1080 * 20 - screen.get_height()
-    # print(camera_x, camera_y)
 
 
 def get_camera_coordinates() -> tuple:
+    """
+    Returns global camera coordinates
+    :return: camera coordinates
+    """
     return camera_x, camera_y
 
 
 def blit_player(screen: pygame.Surface, P: ClientPlayer, angle: float):
+    """
+    Draws player on the screen, uses pygame objects and the blit function
+    :param screen: surface of map
+    :param P: the player
+    :param angle: his angle for the create_image() function
+    :return: Nothing
+    """
     P.create_image(angle=angle)
     P.hit_box.center = P.collision_center.x - camera_x, P.collision_center.y - camera_y
     screen.blit(P.to_blit, P.hit_box)
 
 
 def animate_player(P: ClientPlayer):
+    """
+    Animation for the player on the screen as of a static function
+    :param P: the player
+    :return: Nothing
+    """
     if P.animations[P.status].animate() and P.status != "move":
         P.status = P.next_status
         P.next_status = "idle"

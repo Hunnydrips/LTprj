@@ -27,7 +27,7 @@ def init_game_server() -> tuple:
     return game_server_x_client, game_server_x_central_server
 
 
-def receive_and_handle_request_from_central(game_server_x_client: socket.socket, game_server_x_central_server: socket.socket):
+def receive_and_handle_request_from_central(game_server_x_client: socket.socket(), game_server_x_central_server: socket.socket()):
     """
     Handle packet from central
     :param game_server_x_client: game server and client socket
@@ -43,7 +43,7 @@ def receive_and_handle_request_from_central(game_server_x_client: socket.socket,
     Thread(target=update_player_images_for_clients, args=(game_server_x_client, ACTIVE_PLAYERS[-1])).start()
 
 
-def handle_packet_from_player(game_server_x_client: socket.socket):
+def handle_packet_from_player(game_server_x_client: socket.socket()):
     """
     Handle packets from various clients
     :param game_server_x_client: game server and client socket
@@ -81,9 +81,9 @@ def handle_packet_from_player(game_server_x_client: socket.socket):
             logging.debug(f"Exception found in receive_packet, error code: {e}")
 
 
-def update_pos_for_clients(game_server_x_client: socket.socket, P: ServerPlayer):
+def update_pos_for_clients(game_server_x_client: socket.socket(), P: ServerPlayer):
     """
-    Set locations for each pos player packet
+    Update locations for each pos player packet
     :param game_server_x_client: every game server and client socket
     :param P: every player object
     :return: Nothing
@@ -100,7 +100,7 @@ def update_pos_for_clients(game_server_x_client: socket.socket, P: ServerPlayer)
                     game_server_x_client.sendto(json.dumps(msg).encode(), P.address)
 
 
-def update_player_images_for_clients(game_server_x_client: socket.socket, P: ServerPlayer):
+def update_player_images_for_clients(game_server_x_client: socket.socket(), P: ServerPlayer):
     """
     Update player images nearby other players
     :param game_server_x_client: every game server and client socket
@@ -121,7 +121,7 @@ def update_player_images_for_clients(game_server_x_client: socket.socket, P: Ser
         except Exception as e:
             logging.debug(f"An error occurred trying to send json_strs to players, error {e}")
         finally:
-            time.sleep(.0000001)
+            time.sleep(.001)
 
 
 def main():

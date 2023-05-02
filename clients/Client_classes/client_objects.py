@@ -6,17 +6,37 @@ import math
 
 class Point:
     def __init__(self, x: int, y: int):
+        """
+        Basic constructor for point object
+        :param x: x coordinate
+        :param y: y coordinate
+        """
         self.x, self.y = x, y
 
     def __eq__(self, other):
+        """
+        Equator function, other terms for me
+        :param other: other point for comparison
+        :return: if it is the exact same point value wise
+        """
         return self.x == other.x and self.y == other.y
 
     def to_tuple(self) -> tuple:
+        """
+        conversion to tuple
+        :return: coordinates in tuple
+        """
         return self.x, self.y
 
 
 class Animation:
     def __init__(self, path: str, amount: int, time_per_sprite: float):
+        """
+        Basic constructor for an animation type object
+        :param path: path in files, string
+        :param amount: the amount of sprites between frames, an integer
+        :param time_per_sprite: a float indicating the time between sprites
+        """
         self.path: str = path
         self.sprite_list: list = []
         self.amount_of_sprites: int = amount
@@ -26,13 +46,25 @@ class Animation:
         self.load()
 
     def load(self):
+        """
+        Loading sprites
+        :return: Nothing
+        """
         for i in range(self.amount_of_sprites):
             self.sprite_list.append(pygame.image.load(f"{self.path}{i}.png"))
 
     def reset(self):
+        """
+        Basic reset for last resort
+        :return: Nothing
+        """
         self.current_sprite, self.start_frame = 0, time.time()
 
     def animate(self) -> bool:
+        """
+        Animate function, main function for animating screen objects
+        :return: if the animation had finished or not
+        """
         if self.start_frame + self.time_per_sprite <= time.time():
             self.start_frame = time.time()
             self.current_sprite += 1
@@ -44,6 +76,13 @@ class Animation:
 
 class ClientPlayer:
     def __init__(self, username: str, pos: Point = Point(250, 250), status: str = "idle", angle: float = 0):
+        """
+        My main class that is implemented with the animation class as included down here
+        :param username: the player's username, string
+        :param pos: the player's start position, Point object
+        :param status: the player's current status of animation, string
+        :param angle: angle of player to mouse, float
+        """
         self.animations: dict = {
             "idle": Animation("Client_classes/shotgun/idle/survivor-idle_shotgun_", 20, .05),
             "move": Animation("Client_classes/shotgun/move/survivor-move_shotgun_", 20, .075),
@@ -63,15 +102,26 @@ class ClientPlayer:
         self.to_blit = None
         self.hit_box = None
 
-    def create_image(self, angle: float):           # angle is in radians
+    def create_image(self, angle: float):
+        """
+        Function that creates my image for pygame, error is here for stuttering
+        :param angle: angle of character and mouse, float that is in radians
+        :return: Nothing
+        """
         self.angle = angle
         self.angle *= -180 / math.pi
         self.angle += 4.5
-        self.to_blit = pygame.transform.rotate(self.animations[self.status].sprite_list[self.animations[self.status].current_sprite], self.angle)
+        self.to_blit = pygame.transform.rotate(self.animations[self.status].sprite_list[self.animations[self.status].current_sprite], self.angle)               # IN DEGREES
         self.hit_box = self.to_blit.get_rect()
         self.hit_box.center = pos_by_distance_and_angle(self.angle, -18.08, -52, self.collision_center)
 
     def shoot(self, mouse_x: int, mouse_y: int):
+        """
+        Shooting feature, player is able to project laser into game
+        :param mouse_x: x coordinate of mouse
+        :param mouse_y: y coordinate of mouse
+        :return: Nothing
+        """
         if self.status != "reload" and self.last_shot + 0.25 <= time.time() and self.left_in_magazine:
             self.last_shot = time.time()
             self.left_in_magazine -= 1
@@ -82,12 +132,23 @@ class ClientPlayer:
             self.animations[self.status].reset()
 
     def reload(self):
+        """
+        Two lines that assist function in the Client python file in reloading animation
+        :return: Nothing
+        """
         self.status = "reload"
         self.left_in_magazine = 6
 
 
 class ClientLaser:
     def __init__(self, x: float, y: float, target_x: int, target_y: int):
+        """
+        Basic constructor for creating a laser object on the screen
+        :param x: x coordinate of laser, float
+        :param y: y coordinate of laser, float
+        :param target_x: x coordinate of target, int
+        :param target_y: y coordinate of target, int
+        """
         self.x: float = x
         self.y: float = y
         self.last_move = time.time()
@@ -105,10 +166,18 @@ class ClientLaser:
         self.load()
 
     def load(self):
+        """
+        Loading some sprites needed for laser
+        :return: Nothing
+        """
         for i in range(2):
             self.frames_R.append(pygame.image.load(f"Client_classes/Lasers/R{i}.png"))
 
     def move(self) -> bool:
+        """
+        Function for moving projectile on the screen via pygame
+        :return: if the laser is more than 2 seconds old
+        """
         if self.creation_time + 2 <= time.time():
             return True
         if self.last_move + 0.01 <= time.time():
@@ -128,6 +197,14 @@ class ClientLaser:
 
 
 def pos_by_distance_and_angle(player_angle: float, angle_const: float, distance: float, collision_center: Point) -> tuple:
+    """
+    A more complex function involving mathematical operations and analytical geometry, converts polar coordinates to cartesian ones
+    :param player_angle: current angle of player
+    :param angle_const: some angle constant for making the better looks
+    :param distance: the radius of an inscribed circle
+    :param collision_center: the player's collision centre, basically his centre
+    :return: cartesian coordinates of some object for calculations of some sort
+    """
     angle = (angle_const - player_angle) * math.pi / 180
     m = math.tan(angle)
     x = distance / math.sqrt(1 + m ** 2) + collision_center.x

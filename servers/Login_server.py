@@ -51,7 +51,7 @@ def init_login_server() -> tuple:
 
 def handle_input_from_central(login_server_x_central_server: socket.socket()):
     """
-    Central handling for getting client
+    Handling central packet for getting client
     :param login_server_x_central_server: login server and central server socket
     :return: Nothing, eternal loop using a thread
     """
@@ -63,6 +63,7 @@ def handle_input_from_central(login_server_x_central_server: socket.socket()):
 
 def handle_input_from_client(login_server_x_client: socket.socket(), login_server_x_central_server: socket.socket()):
     """
+    Handling client packet for login process
     :param login_server_x_client: login server and client socket
     :param login_server_x_central_server: login server and central server socket
     :return: Nothing

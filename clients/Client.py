@@ -105,18 +105,16 @@ def handle_packet_from_game_server(client_x_everything: socket.socket, P: Client
                         players_to_display[i] = player_to_display
                 if not flag:
                     players_to_display.append(player_to_display)
-                logging.debug("An exterior player has been added to the list, show him if needed")
 
 
 def display_players():
     """
-    Minor shortening so to explain work and effort, consider errors in this funcs that may happen and how to handle them
+    Minor shortening so to explain work and endeavour, consider errors in this funcs that may happen and how to handle them
     :return: Nothing
     """
-    print(len(players_to_display))
     for player in players_to_display:
         try:
-            # animate_player(player)
+            animate_player(player)
             tmp_angle = player.angle
             blit_player(screen, player, player.angle)
             player.angle = tmp_angle
@@ -152,7 +150,7 @@ def send_json_str_to_server(client_x_everything: socket.socket, game_server_ip: 
 
 def move_all_lasers(P: ClientPlayer):
     """
-    Move each player's laser on their screens
+    Move each player's lasers on their screens
     :param P: player object
     :return: Nothing
     """
@@ -224,7 +222,7 @@ def main():
         c_x, c_y = get_camera_coordinates()
         paint_map(screen)
         animate_player(P)
-        display_players()
+        display_players()                           # This function is not fully operational, but it does the minimal job for the time being
         mouse_x, mouse_y = pygame.mouse.get_pos()
         blit_player(screen, P, math.atan2(mouse_y - P.collision_center.y + c_y, mouse_x - P.collision_center.x + c_x))
         move_all_lasers(P)

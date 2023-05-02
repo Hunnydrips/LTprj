@@ -101,7 +101,7 @@ def display_players():
     print(len(players_to_display))
     for player in players_to_display:
         try:
-            # animate_player(player)
+            animate_player(player)
             tmp_angle = player.angle
             blit_player(screen, player, player.angle)
             player.angle = tmp_angle
