@@ -10,7 +10,10 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 TILES = []
-COLLIDE_LIST = [Point(2, 8), Point(5, 9)]               # example set for examination
+COLLIDE_LIST = [
+    Point(2, 8),
+    Point(5, 9)
+]  # example set for examination
 
 
 def paint_map(screen: pygame.Surface):
@@ -19,7 +22,7 @@ def paint_map(screen: pygame.Surface):
     :param screen: surface of map
     :return: Nothing
     """
-    for i in range(9):                                                  # Load the tile images
+    for i in range(9):  # Load the tile images
         TILES.append(pygame.image.load(f"Client_classes/map_tiles/tile_{i}.png"))
     to_add_x, to_add_y = camera_x % TILE_SIZE, camera_y % TILE_SIZE
     top_left_tile_x = camera_x // TILE_SIZE
@@ -104,4 +107,3 @@ def animate_player(P: ClientPlayer):
         if not P.left_in_magazine:
             P.reload()
         P.animations[P.status].reset()
-

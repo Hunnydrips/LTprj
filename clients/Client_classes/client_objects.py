@@ -1,4 +1,3 @@
-from random import randint
 import pygame
 import time
 import math
@@ -89,6 +88,7 @@ class ClientPlayer:
             "reload": Animation("Client_classes/shotgun/reload/survivor-reload_shotgun_", 20, .075),
             "shoot": Animation("Client_classes/shotgun/shoot/survivor-shoot_shotgun_", 3, .0833)
         }
+
         self.collision_center: Point = pos
         self.angle: float = angle
         self.username = username
@@ -125,8 +125,7 @@ class ClientPlayer:
         if self.status != "reload" and self.last_shot + 0.25 <= time.time() and self.left_in_magazine:
             self.last_shot = time.time()
             self.left_in_magazine -= 1
-            self.lasers.append(
-                ClientLaser(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center), mouse_x, mouse_y))
+            self.lasers.append(ClientLaser(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center), mouse_x, mouse_y))
             print(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center))
             self.status = "shoot"
             self.animations[self.status].reset()
@@ -138,6 +137,14 @@ class ClientPlayer:
         """
         self.status = "reload"
         self.left_in_magazine = 6
+
+    def move(self):
+        """
+        move function for player, updates coordinates
+        :return: Nothing
+        """
+        self.collision_center.x += self.x_dir * 10
+        self.collision_center.y += self.y_dir * 10
 
 
 class ClientLaser:
@@ -151,13 +158,13 @@ class ClientLaser:
         """
         self.x: float = x
         self.y: float = y
-        self.last_move = time.time()
-        self.creation_time = time.time()
+        self.last_move: float = time.time()
+        self.creation_time: float = time.time()
         self.angle = math.atan2(float(target_y - self.y), float(target_x - self.x))
         self.frames_per_state: int = 20
         self.frames_at_curr_state: int = 0
-        self.v_x: float = float(10 * math.cos(self.angle))
-        self.v_y: float = float(10 * math.sin(self.angle))
+        self.v_x: float = float(18 * math.cos(self.angle))
+        self.v_y: float = float(18 * math.sin(self.angle))
         self.angle *= -180 / math.pi
         self.state: int = 0
         self.frames_R: list = []
@@ -206,9 +213,9 @@ def pos_by_distance_and_angle(player_angle: float, angle_const: float, distance:
     :return: cartesian coordinates of some object for calculations of some sort
     """
     angle = (angle_const - player_angle) * math.pi / 180
-    m = math.tan(angle)
-    x = distance / math.sqrt(1 + m ** 2) + collision_center.x
-    y = m * (x - collision_center.x) + collision_center.y
+    grad = math.tan(angle)
+    x = distance / math.sqrt(1 + grad ** 2) + collision_center.x
+    y = grad * (x - collision_center.x) + collision_center.y
     if -90 < player_angle - angle_const < 90:
         x = 2 * collision_center.x - x
         y = 2 * collision_center.y - y

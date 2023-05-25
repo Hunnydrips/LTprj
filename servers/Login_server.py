@@ -1,5 +1,7 @@
+from sqlite3 import Cursor, Connection
 from threading import Thread
 from hashlib import sha256
+from typing import Any
 import socket
 import sqlite3
 
@@ -16,19 +18,19 @@ def is_list_in_other_list(l1: list, l2: list) -> bool:
     return str(l1)[1:-1].__contains__(str(l2)[1:-1])
 
 
-def in_table(items: list, cur) -> bool:
+def in_table(items: list, cur: Cursor) -> bool:
     """
     :param items: objects inside table
     :param cur: cursor object (SQL)
     :return: if a row exists in items
     """
-    x = '*'
+    x: str = '*'
     if len(items) == 1:
         x = 'name_hash_hash'
     cur.execute(f'SELECT {x} FROM users')
-    rows = cur.fetchall()
+    rows: Any = cur.fetchall()
     if len(items) == 1:
-        rows = [rows]
+        rows: list = [rows]
     for row in rows:
         if is_list_in_other_list(row, items):
             return True
@@ -49,7 +51,7 @@ def init_login_server() -> tuple:
     return login_server_x_client, login_server_x_central_server
 
 
-def handle_input_from_central(login_server_x_central_server: socket.socket()):
+def handle_input_from_central(login_server_x_central_server: socket.socket):
     """
     Handling central packet for getting client
     :param login_server_x_central_server: login server and central server socket
@@ -61,21 +63,21 @@ def handle_input_from_central(login_server_x_central_server: socket.socket()):
     Thread(target=handle_input_from_central, args=(login_server_x_central_server,)).start()
 
 
-def handle_input_from_client(login_server_x_client: socket.socket(), login_server_x_central_server: socket.socket()):
+def handle_input_from_client(login_server_x_client: socket.socket, login_server_x_central_server: socket.socket):
     """
     Handling client packet for login process
     :param login_server_x_client: login server and client socket
     :param login_server_x_central_server: login server and central server socket
     :return: Nothing
     """
-    conn = sqlite3.connect("I_hate_sql.db")
-    cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS users (name_hash_hash TEXT, password_hash_hash TEXT)")
+    conn: Connection = sqlite3.connect("I_hate_sql.db")
+    cursor: Cursor = conn.cursor()
+    cursor.execute("CREATE TABLE IF NOT EXISTS users (name_hash TEXT, password_hash_hash TEXT)")
     data, ip = login_server_x_client.recvfrom(1024)
     if ip in USER_IPS:
         name, password_hash, flag = data.decode().split("$")
         name_hash, password_hash_hash = sha256(name.encode()).hexdigest(), sha256(password_hash.encode()).hexdigest()
-        to_send = 'Incorrect data'
+        to_send: str = 'Incorrect data'
         match flag:
             case "log_in":
                 if in_table([name_hash, password_hash_hash], cursor):
@@ -105,7 +107,6 @@ def main():
         pass
     login_server_x_central_server.close()
     login_server_x_client.close()
-    cursor.execute('SELECT * FROM users')
     conn.close()
 
 

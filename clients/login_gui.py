@@ -15,7 +15,7 @@ class InvalidPasswordException(Exception):
     pass
 
 
-def send_credentials(root, username, password, var_flag, str_flag):
+def send_credentials(root: Tk, username: str, password: str, var_flag: IntVar, str_flag):
     """
     sends credentials to login server so to keep in DB
     :param root: primal object of the tkinter module
@@ -41,7 +41,7 @@ def send_credentials(root, username, password, var_flag, str_flag):
         root.destroy()
 
 
-def login_screen(Client_x_everything: socket.socket = socket.socket(), Login_server_ip: tuple = ("", 0)):
+def login_screen(Client_x_everything: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM), Login_server_ip: tuple[str, int] = ("", 0)):
     """
     Big function that consists of smaller, indicates the login screen
     :param Client_x_everything: client and everything socket

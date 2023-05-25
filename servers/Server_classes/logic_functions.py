@@ -1,13 +1,23 @@
 from .server_objects import *
+from clients.Client_classes.client_objects import *
 
-TILE_SIZE = 120
-HIT_BOX_SIZE = 144
-TILED_MAP_WIDTH = 319
-TILED_MAP_HEIGHT = 179
-COLLIDE_LIST = [Point(2, 8), Point(5, 9)]
+TILE_SIZE: int = 120
+HIT_BOX_SIZE: int = 144
+TILED_MAP_WIDTH: int = 319
+TILED_MAP_HEIGHT: int = 179
+
+COLLIDE_LIST: list = [
+    Point(2, 8),
+    Point(5, 9)
+]
 
 
-def check_collision(P: ServerPlayer):
+def check_collision(P: ServerPlayer | ClientPlayer) -> bool:
+    """
+    Checks collision of player with other tiles in map
+    :param P:
+    :return: if player is colliding with nearby dud blocks
+    """
     tiles_to_check = []
     start_x, start_y = P.collision_center.x + 2 * P.x_dir - HIT_BOX_SIZE // 2, P.collision_center.y + 2 * P.y_dir - HIT_BOX_SIZE // 2
     mult_x, mult_y = -1, -1
@@ -28,6 +38,6 @@ def check_collision(P: ServerPlayer):
             if tile not in tiles_to_check:
                 tiles_to_check.append(tile)
     for tile in tiles_to_check:
-        if tile.x % TILED_MAP_WIDTH == 0 or tile.y % TILED_MAP_HEIGHT == 0 or tile in COLLIDE_LIST:
+        if not (tile.x % TILED_MAP_WIDTH) or not (tile.y % TILED_MAP_HEIGHT) or tile in COLLIDE_LIST:
             return False
     return True

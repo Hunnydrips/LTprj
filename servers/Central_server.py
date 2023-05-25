@@ -1,5 +1,8 @@
 from threading import Thread
 import socket
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def init_central_server() -> tuple:
@@ -16,7 +19,7 @@ def init_central_server() -> tuple:
     return central_server_x_client, central_server_x_login_server, central_server_x_game_server
 
 
-def connect_to_login(central_server_x_login_server: socket.socket()) -> tuple:
+def connect_to_login(central_server_x_login_server: socket.socket) -> tuple:
     """
     Main connection line to log-in server
     :param central_server_x_login_server: central server and login server socket
@@ -27,13 +30,13 @@ def connect_to_login(central_server_x_login_server: socket.socket()) -> tuple:
         data, ip = central_server_x_login_server.recvfrom(1024)
         match data:
             case b"3!a":
-                login_ip_for_server = ip
+                login_ip_for_server: tuple | str = ip
             case b"3!b":
-                login_ip_for_client = ip
+                login_ip_for_client: tuple | str = ip
     return login_ip_for_client, login_ip_for_server
 
 
-def connect_to_game(central_server_x_game_server: socket.socket()) -> tuple:
+def connect_to_game(central_server_x_game_server: socket.socket) -> tuple:
     """
     Main connection line to game server
     :param central_server_x_game_server: central server and game server socket
@@ -44,13 +47,13 @@ def connect_to_game(central_server_x_game_server: socket.socket()) -> tuple:
         data, ip = central_server_x_game_server.recvfrom(1024)
         match data:
             case b"XJ9":
-                game_ip_for_server = ip
+                game_ip_for_server: tuple | str = ip
             case b"YJ9":
-                game_ip_for_client = ip
+                game_ip_for_client: tuple | str = ip
     return game_ip_for_client, game_ip_for_server
 
 
-def handle_request_from_client(central_server_x_client: socket.socket(), central_server_x_login_server: socket.socket(),
+def handle_request_from_client(central_server_x_client: socket.socket, central_server_x_login_server: socket.socket,
                                log_serv_ip_for_server: tuple, log_serv_ip_for_clients: tuple):
     """
     Handle client packets generally
@@ -62,14 +65,14 @@ def handle_request_from_client(central_server_x_client: socket.socket(), central
     """
     while True:
         data, ip = central_server_x_client.recvfrom(1024)
-        print(data, ip)
+        logging.debug(f"User has entered, details: {data, ip}")
         if data == b"log_requested":
             print(log_serv_ip_for_server)
             central_server_x_login_server.sendto(str(ip).encode(), log_serv_ip_for_server)
             central_server_x_client.sendto(str(log_serv_ip_for_clients).encode(), ip)
 
 
-def handle_packet_from_login_server(central_server_x_login_server: socket.socket(), central_server_x_game_server: socket.socket(), central_server_x_client: socket.socket(),
+def handle_packet_from_login_server(central_server_x_login_server: socket.socket, central_server_x_game_server: socket.socket, central_server_x_client: socket.socket,
                                     game_serv_ip_for_server: tuple, game_serv_ip_for_clients: tuple):
     """
     Handle packets coming specifically from the login server for players, nice isolation
