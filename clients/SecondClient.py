@@ -1,7 +1,7 @@
 from threading import Thread
-from typing import Tuple
-from Client_classes.graphic_functions import *
-from Client_classes.client_objects import *
+from servers.Server_classes.logic_functions import check_collision
+from clients.Client_classes.graphic_functions import *
+from clients.Client_classes.client_objects import *
 from pygame.locals import *
 import pygame
 import socket
@@ -18,8 +18,10 @@ event_to_packet: dict = {
     pygame.K_r: "reload"
 }
 
+PORT: int = 8100
+LOCAL_HOST: str = "127.0.0.1"
 players_to_display: list = []
-CENTRAL_ADDR: tuple = ("127.0.0.1", 8100)
+CENTRAL_ADDR: tuple = (LOCAL_HOST, PORT)
 screen: pygame.Surface = pygame.display.set_mode((600, 600), RESIZABLE)
 logging.basicConfig(level=logging.DEBUG)
 
@@ -30,27 +32,27 @@ def init_settings():
     :return: Nothing
     """
     with open("settings.txt", 'a'):
-        pass  # ensuring the file's existence
+        pass                            # ensuring the file's existence
     with open("settings.txt", 'r') as f:
         if len(f.readlines()) < 3:
             with open("settings.txt", 'w') as file:
                 file.write("auto_sign_up\nname\npassword\n")
 
 
-def log_in() -> Tuple[socket.socket, Tuple[str, int]]:  # connection to central so to have the ip of login server
+def log_in() -> tuple[socket.socket, tuple[str, int]]:  # connection to central so to have the ip of login server
     """
     Log-in function, separates duality and accepts players
     :return: Player socket and game server address
     """
-    client_x_everything = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    client_x_everything: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_x_everything.sendto(b"log_requested", CENTRAL_ADDR)
     data = client_x_everything.recvfrom(1024)[0].decode()[1:-1].split(", ")
-    login_server_ip = (data[0][1:-1], int(data[1]))
+    login_server_ip: tuple = (data[0][1:-1], int(data[1]))
     while not log_in_or_sign_up(client_x_everything, login_server_ip):
         logging.info("Waiting for somebody to connect")
     logging.info("Logged in successfully")
-    data = client_x_everything.recvfrom(1024)[0].decode()[1:-1].split(", ")
-    game_server_ip = (data[0][1:-1], int(data[1]))
+    data: list = client_x_everything.recvfrom(1024)[0].decode()[1:-1].split(", ")
+    game_server_ip: tuple = (data[0][1:-1], int(data[1]))
     client_x_everything.sendto(json.dumps({"cmd": "begin"}).encode(), game_server_ip)
     logging.info("Connection to game server has been established :D")
     return client_x_everything, game_server_ip
@@ -68,6 +70,7 @@ def log_in_or_sign_up(client_x_everything: socket.socket, login_server_ip: tuple
         data = f.read().split("\n")
     if data[0] == "true":
         name_hash, password_hash, flag = data[1], data[2], "log_in"
+        print(name_hash)
         client_x_everything.sendto(f"{name_hash}${password_hash}${flag}".encode(), login_server_ip)
         resp = client_x_everything.recvfrom(1024)[0].decode()
         positive_answer = ["log_in successful", "Created username successfully"]
@@ -81,7 +84,7 @@ def log_in_or_sign_up(client_x_everything: socket.socket, login_server_ip: tuple
         return True
 
 
-def handle_packet_from_game_server(client_x_everything: socket.socket(), P: ClientPlayer):
+def handle_packet_from_game_server(client_x_everything: socket.socket, P: ClientPlayer):
     """
     Handle packets coming from game server
     :param client_x_everything: player socket
@@ -92,12 +95,13 @@ def handle_packet_from_game_server(client_x_everything: socket.socket(), P: Clie
         data, ip = client_x_everything.recvfrom(1024)
         msg = json.loads(data.decode())
         print(msg)
-        if msg["cmd"] == 'move':
-            x, y = msg["pos"][0], msg["pos"][1]
-            P.collision_center = Point(x, y)
+        # if msg["cmd"] == 'move':
+        #     pass
+        #     x, y = msg["pos"][0], msg["pos"][1]
+        #     P.collision_center = Point(x, y)
         if msg["cmd"] == "load":
             for json_str in msg["json_strs"]:
-                attr_dict: dict = json.loads(json_str)
+                attr_dict: dict = json_str                      # json_str is already in dictionary form
                 player_to_display: ClientPlayer = ClientPlayer(
                     username=attr_dict["name"],
                     pos=Point(*attr_dict["pos"]),
@@ -113,6 +117,9 @@ def handle_packet_from_game_server(client_x_everything: socket.socket(), P: Clie
                 if not flag:
                     print(enumerate(players_to_display))
                     players_to_display.append(player_to_display)
+        if msg["cmd"] == "disconnect":
+            print("Player should now be disconnected")
+            shutdown_client(client_x_everything=client_x_everything)
 
 
 def display_players():
@@ -131,7 +138,7 @@ def display_players():
             print(e)
 
 
-def send_json_str_to_server(client_x_everything: socket.socket(), game_server_ip: tuple, P: ClientPlayer):
+def send_json_str_to_server(client_x_everything: socket.socket, game_server_ip: tuple, P: ClientPlayer):
     """
     Send player details to server so to have a connected game with all players available
     :param client_x_everything: player socket
@@ -142,18 +149,20 @@ def send_json_str_to_server(client_x_everything: socket.socket(), game_server_ip
     prev_angle = P.angle
     while True:
         if prev_angle != P.angle:
-            player_attr = {
+            player_attr: dict = {
                 "pos": P.collision_center.to_tuple(),
                 "angle": P.angle,
                 "status": P.status,
                 "name": "Alice",
                 "current_sprite": P.animations[P.status].current_sprite
             }
+
             packet_data = json.dumps(player_attr)
             msg: dict = {
                 "cmd": "add",
                 "player_to_add": packet_data
             }
+
             client_x_everything.sendto(json.dumps(msg).encode(), game_server_ip)
             prev_angle = P.angle
             time.sleep(.3)
@@ -182,12 +191,23 @@ def move_all_lasers(P: ClientPlayer):
             pygame.draw.rect(screen, BLUE, laser_collide_rect, 4)
 
 
+def shutdown_client(client_x_everything: socket.socket):
+    """
+    A three liner consisting the end of the programme
+    :param client_x_everything: a socket that connects the client with the necessary servers
+    :return: Nothing
+    """
+    client_x_everything.close()
+    pygame.quit()
+    sys.exit()
+
+
 def main():
     init_settings()
     client_x_everything, game_server_ip = log_in()
     pygame.init()
     clock = pygame.time.Clock()
-    P = ClientPlayer("Bob")
+    P: ClientPlayer = ClientPlayer(username="Alice")
     Thread(target=handle_packet_from_game_server, args=(client_x_everything, P)).start()
     Thread(target=send_json_str_to_server, args=(client_x_everything, game_server_ip, P)).start()
     running = True
@@ -196,9 +216,7 @@ def main():
         for event in pygame.event.get():
             match event.type:
                 case pygame.QUIT:
-                    pygame.quit()
-                    client_x_everything.close()
-                    sys.exit()
+                    shutdown_client(client_x_everything=client_x_everything)
                 case pygame.KEYDOWN:
                     match event.key:
                         case pygame.K_r:
@@ -231,6 +249,8 @@ def main():
                     if event.button == pygame.BUTTON_LEFT:
                         c_x, c_y = get_camera_coordinates()
                         P.shoot(pygame.mouse.get_pos()[0] + c_x, pygame.mouse.get_pos()[1] + c_y)
+        if check_collision(P):
+            P.move()                                                                                        # REMOVES STUTTERING BUG!!!
         c_x, c_y = get_camera_coordinates()
         paint_map(screen)
         animate_player(P)

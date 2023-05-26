@@ -16,7 +16,7 @@ def check_collision(P: ServerPlayer | ClientPlayer) -> bool:
     """
     Checks collision of player with other tiles in map
     :param P:
-    :return: if player is colliding with nearby dud blocks
+    :return: if player is not colliding with nearby dud blocks
     """
     tiles_to_check = []
     start_x, start_y = P.collision_center.x + 2 * P.x_dir - HIT_BOX_SIZE // 2, P.collision_center.y + 2 * P.y_dir - HIT_BOX_SIZE // 2

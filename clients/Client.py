@@ -95,13 +95,9 @@ def handle_packet_from_game_server(client_x_everything: socket.socket, P: Client
         data, ip = client_x_everything.recvfrom(1024)
         msg = json.loads(data.decode())
         print(msg)
-        # if msg["cmd"] == 'move':
-        #     pass
-        #     x, y = msg["pos"][0], msg["pos"][1]
-        #     P.collision_center = Point(x, y)
         if msg["cmd"] == "load":
             for json_str in msg["json_strs"]:
-                attr_dict: dict = json.loads(json_str)
+                attr_dict: dict = json_str                      # json_str is already in dictionary form
                 player_to_display: ClientPlayer = ClientPlayer(
                     username=attr_dict["name"],
                     pos=Point(*attr_dict["pos"]),
@@ -109,13 +105,12 @@ def handle_packet_from_game_server(client_x_everything: socket.socket, P: Client
                     angle=attr_dict["angle"] / -180 * math.pi
                 )
                 player_to_display.animations[player_to_display.status].current_sprite = attr_dict["current_sprite"]
-                flag = False
+                same_username: bool = False
                 for i, player in enumerate(players_to_display):
                     if player.username == player_to_display.username:
-                        flag = True
+                        same_username = True
                         players_to_display[i] = player_to_display
-                if not flag:
-                    print(enumerate(players_to_display))
+                if not same_username:
                     players_to_display.append(player_to_display)
         if msg["cmd"] == "disconnect":
             print("Player should now be disconnected")
@@ -156,11 +151,13 @@ def send_json_str_to_server(client_x_everything: socket.socket, game_server_ip: 
                 "name": "Bob",
                 "current_sprite": P.animations[P.status].current_sprite
             }
+
             packet_data = json.dumps(player_attr)
             msg: dict = {
                 "cmd": "add",
                 "player_to_add": packet_data
             }
+
             client_x_everything.sendto(json.dumps(msg).encode(), game_server_ip)
             prev_angle = P.angle
             time.sleep(.3)
@@ -205,7 +202,7 @@ def main():
     client_x_everything, game_server_ip = log_in()
     pygame.init()
     clock = pygame.time.Clock()
-    P = ClientPlayer("Bob")
+    P: ClientPlayer = ClientPlayer(username="Bob")
     Thread(target=handle_packet_from_game_server, args=(client_x_everything, P)).start()
     Thread(target=send_json_str_to_server, args=(client_x_everything, game_server_ip, P)).start()
     running = True

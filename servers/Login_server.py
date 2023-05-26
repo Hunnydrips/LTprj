@@ -5,8 +5,10 @@ from typing import Any
 import socket
 import sqlite3
 
-USER_IPS = []
-CENTRAL_ADDR = ("127.0.0.1", 8101)
+USER_IPS: list = []
+LOCAL_HOST: str = "127.0.0.1"
+PORT: int = 8101
+CENTRAL_ADDR: tuple[str, int] = (LOCAL_HOST, PORT)
 
 
 def is_list_in_other_list(l1: list, l2: list) -> bool:

@@ -65,14 +65,12 @@ def handle_packet_from_player(game_server_x_client: socket.socket):
             print(msg)
             if ip not in IPS or msg["cmd"] == "begin":
                 logging.debug("Packet has now reached server and is now being filtered")
-
             P: ServerPlayer = ...
             try:
-                P: ServerPlayer = ACTIVE_PLAYERS[IPS.index(ip)]                                 # problem is here, player might not exist due to removal in anti-cheat
+                P: ServerPlayer = ACTIVE_PLAYERS[IPS.index(ip)]  # problem is here, player might not exist due to removal in anti-cheat
             except Exception as e:
                 logging.debug(f"An exception has occurred {e}")
                 continue
-
             match msg["cmd"]:
                 case "press":
                     direction = msg["key_stroke"]
@@ -91,10 +89,12 @@ def handle_packet_from_player(game_server_x_client: socket.socket):
                     elif direction in directions_y:
                         P.y_dir = 0
                 case "add":
-                    json_str: dict = json.loads(msg["player_to_add"])                   # had to turn it into a dictionary
+                    json_str: dict = json.loads(msg["player_to_add"])  # had to turn it into a dictionary
                     if json_str:
                         P.json_str = json_str
                     print(P.json_str)
+                case _:
+                    continue
         except Exception as e:
             logging.debug(f"Exception found in handle_packet, error code: {e}")
 
@@ -111,15 +111,14 @@ def check_player_pos_validity(game_server_x_client: socket.socket, P: ServerPlay
             if check_collision(P):
                 if P.move() and P.json_str:
                     client_x, client_y = P.json_str["pos"]
-                    print(P.json_str["pos"])
-                    print(P.collision_center.to_tuple())
-                    if abs(client_x - P.collision_center.x) >= 1600 or abs(client_y - P.collision_center.y) >= 900:
+                    if abs(client_x - P.collision_center.x) >= 16000 or abs(client_y - P.collision_center.y) >= 9000:
                         logging.debug(f"Player has made a ridiculous jump and should be disconnected for it!!!\nPlayer name: {P.json_str['name']}\n")
-                        ACTIVE_PLAYERS.remove(P)                                            # removed player from active list
+                        ACTIVE_PLAYERS.remove(P)  # removed player from active list
+                        IPS.remove(P.address)     # removed ip from IP list
                         msg: dict = {
                             "cmd": "disconnect"
                         }
-                        game_server_x_client.sendto(json.dumps(msg).encode(), P.address)    # closing player's game
+                        game_server_x_client.sendto(json.dumps(msg).encode(), P.address)  # closing player's game
 
 
 def update_player_images_for_clients(game_server_x_client: socket.socket, P: ServerPlayer):
@@ -129,21 +128,40 @@ def update_player_images_for_clients(game_server_x_client: socket.socket, P: Ser
     :param P: every player object
     :return: Nothing
     """
+    prev_angle: float = 0
+    prev_sprite: int = 0
+    changed_condition: bool = False
     while P in ACTIVE_PLAYERS:
         msg: dict = {
             "cmd": "load",
             "json_strs": []
         }
-        for player in ACTIVE_PLAYERS:
+        for i, player in enumerate(ACTIVE_PLAYERS):
             if abs(player.collision_center.x - P.collision_center.x) < 1920 and abs(player.collision_center.y - P.collision_center.y) < 1080 and player is not P and player.json_str:
-                msg["json_strs"].append(player.json_str)
+                if player.json_str not in msg["json_strs"]:
+                    msg["json_strs"].append(player.json_str)
+                if prev_angle != player.json_str['angle'] and prev_sprite != player.json_str['current_sprite']:
+                    new_angle: float = player.json_str['angle']
+                    new_sprite: int = player.json_str['current_sprite']
+                    try:
+                        msg["json_strs"][i]['angle'] = new_angle
+                        msg["json_strs"][i]['current_sprite'] = new_sprite
+                    except Exception as e:
+                        print(f"Index exception, {e}")
+                        print(f"Index is: {i}")
+                    finally:
+                        prev_angle = new_angle
+                        prev_sprite = new_sprite
+                        changed_condition = True
         try:
-            if len(msg["json_strs"]):
+            if len(msg["json_strs"]) and changed_condition:
+                logging.debug(f"{changed_condition}")
                 game_server_x_client.sendto(json.dumps(msg).encode(), P.address)
+                changed_condition = False
         except Exception as e:
-            logging.debug(f"An error occurred trying to send json_strs to players, error {e}")
-        finally:
-            time.sleep(.001)
+            logging.debug(f"An error occurred trying to send graphics to players, error {e}")
+        # finally:
+        #     time.sleep(.001)  # a bit of waiting so to not entirely flood subnet
 
 
 def main():
@@ -152,7 +170,7 @@ def main():
     Thread(target=handle_packet_from_player, args=(game_server_x_client,)).start()
     running = True
     while running:
-        pass                    # let the main thread run by
+        pass  # let the main thread run by
 
 
 if __name__ == '__main__':
