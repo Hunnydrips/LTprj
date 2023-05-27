@@ -32,7 +32,7 @@ def init_settings():
     :return: Nothing
     """
     with open("settings.txt", 'a'):
-        pass                            # ensuring the file's existence
+        pass  # ensuring the file's existence
     with open("settings.txt", 'r') as f:
         if len(f.readlines()) < 3:
             with open("settings.txt", 'w') as file:
@@ -53,7 +53,10 @@ def log_in() -> tuple[socket.socket, tuple[str, int]]:  # connection to central 
     logging.info("Logged in successfully")
     data: list = client_x_everything.recvfrom(1024)[0].decode()[1:-1].split(", ")
     game_server_ip: tuple = (data[0][1:-1], int(data[1]))
-    client_x_everything.sendto(json.dumps({"cmd": "begin"}).encode(), game_server_ip)
+    msg: dict = {
+        "cmd": "begin"
+    }
+    client_x_everything.sendto(json.dumps(msg).encode(), game_server_ip)
     logging.info("Connection to game server has been established :D")
     return client_x_everything, game_server_ip
 
@@ -95,26 +98,31 @@ def handle_packet_from_game_server(client_x_everything: socket.socket, P: Client
         data, ip = client_x_everything.recvfrom(1024)
         msg = json.loads(data.decode())
         print(msg)
-        if msg["cmd"] == "load":
-            for json_str in msg["json_strs"]:
-                attr_dict: dict = json_str                      # json_str is already in dictionary form
-                player_to_display: ClientPlayer = ClientPlayer(
-                    username=attr_dict["name"],
-                    pos=Point(*attr_dict["pos"]),
-                    status=attr_dict["status"],
-                    angle=attr_dict["angle"] / -180 * math.pi
-                )
-                player_to_display.animations[player_to_display.status].current_sprite = attr_dict["current_sprite"]
-                same_username: bool = False
-                for i, player in enumerate(players_to_display):
-                    if player.username == player_to_display.username:
-                        same_username = True
-                        players_to_display[i] = player_to_display
-                if not same_username:
-                    players_to_display.append(player_to_display)
-        if msg["cmd"] == "disconnect":
-            print("Player should now be disconnected")
-            shutdown_client(client_x_everything=client_x_everything)
+        match msg["cmd"]:
+            case "load":
+                for json_str in msg["json_strs"]:
+                    attr_dict: dict = json_str  # json_str is already in dictionary form
+                    player_to_display: ClientPlayer = ClientPlayer(
+                        username=attr_dict["name"],
+                        pos=Point(*attr_dict["pos"]),
+                        status=attr_dict["status"],
+                        angle=attr_dict["angle"] / -180 * math.pi
+                    )
+                    player_to_display.animations[player_to_display.status].current_sprite = attr_dict["current_sprite"]
+                    same_username: bool = False
+                    for i, player in enumerate(players_to_display):
+                        if player.username == player_to_display.username:
+                            same_username = True
+                            players_to_display[i] = player_to_display
+                    if not same_username:
+                        players_to_display.append(player_to_display)
+            case "show_laser":
+                laser_to_show = ClientLaser(*msg['start_coordinates'], *msg['target_coordinates'])
+                P.lasers.append(laser_to_show)
+                move_all_lasers(P)
+            case "disconnect":
+                print("Player should now be disconnected")
+                shutdown_client(client_x_everything=client_x_everything)
 
 
 def display_players():
@@ -133,10 +141,9 @@ def display_players():
             print(e)
 
 
-def send_json_str_to_server(client_x_everything: socket.socket, game_server_ip: tuple, P: ClientPlayer):
+def send_json_str_to_server(game_server_ip: tuple, P: ClientPlayer):
     """
     Send player details to server so to have a connected game with all players available
-    :param client_x_everything: player socket
     :param game_server_ip: game server socket and ip
     :param P: player object
     :return: Nothing
@@ -158,7 +165,7 @@ def send_json_str_to_server(client_x_everything: socket.socket, game_server_ip: 
                 "player_to_add": packet_data
             }
 
-            client_x_everything.sendto(json.dumps(msg).encode(), game_server_ip)
+            P.client_sock.sendto(json.dumps(msg).encode(), game_server_ip)
             prev_angle = P.angle
             time.sleep(.3)
 
@@ -202,16 +209,16 @@ def main():
     client_x_everything, game_server_ip = log_in()
     pygame.init()
     clock = pygame.time.Clock()
-    P: ClientPlayer = ClientPlayer(username="Bob")
+    P: ClientPlayer = ClientPlayer(username="Bob", sock=client_x_everything)
     Thread(target=handle_packet_from_game_server, args=(client_x_everything, P)).start()
-    Thread(target=send_json_str_to_server, args=(client_x_everything, game_server_ip, P)).start()
+    Thread(target=send_json_str_to_server, args=(game_server_ip, P)).start()
     running = True
     while running:
         update_camera_cords(screen, P.collision_center)
         for event in pygame.event.get():
             match event.type:
                 case pygame.QUIT:
-                    shutdown_client(client_x_everything=client_x_everything)
+                    shutdown_client(client_x_everything=P.client_sock)
                 case pygame.KEYDOWN:
                     match event.key:
                         case pygame.K_r:
@@ -225,7 +232,7 @@ def main():
                             P.x_dir = event_to_packet[event.key][1]
                         else:
                             P.y_dir = event_to_packet[event.key][1]
-                        client_x_everything.sendto(json.dumps(msg).encode(), game_server_ip)
+                        P.client_sock.sendto(json.dumps(msg).encode(), game_server_ip)
                         logging.debug("A key has been pressed and sent to the server")
                 case pygame.KEYUP:
                     if event.key in event_to_packet:
@@ -237,15 +244,20 @@ def main():
                             P.x_dir = 0
                         else:
                             P.y_dir = 0
-                        client_x_everything.sendto(json.dumps(msg).encode(), game_server_ip)
+                        P.client_sock.sendto(json.dumps(msg).encode(), game_server_ip)
                         logging.debug("A key has been released and sent to the server")
                 case pygame.MOUSEBUTTONDOWN:
-                    # client-sided
                     if event.button == pygame.BUTTON_LEFT:
                         c_x, c_y = get_camera_coordinates()
                         P.shoot(pygame.mouse.get_pos()[0] + c_x, pygame.mouse.get_pos()[1] + c_y)
+                        msg: dict = {
+                            "cmd": "show_proj",
+                            "start_coordinates": (P.lasers[-1].x, P.lasers[-1].y),
+                            "target_coordinates": pygame.mouse.get_pos()
+                        }
+                        P.client_sock.sendto(json.dumps(msg).encode(), game_server_ip)
         if check_collision(P):
-            P.move()                                                                                        # REMOVES STUTTERING BUG!!!
+            P.move()  # REMOVES STUTTERING BUG!!!
         c_x, c_y = get_camera_coordinates()
         paint_map(screen)
         animate_player(P)

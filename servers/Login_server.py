@@ -62,7 +62,7 @@ def handle_input_from_central(login_server_x_central_server: socket.socket):
     data, ip = login_server_x_central_server.recvfrom(1024)
     data = data.decode()[1:-1].split(", ")
     USER_IPS.append((data[0][1:-1], int(data[1])))
-    Thread(target=handle_input_from_central, args=(login_server_x_central_server,)).start()
+    Thread(target=handle_input_from_central, args=(login_server_x_central_server, )).start()
 
 
 def handle_input_from_client(login_server_x_client: socket.socket, login_server_x_central_server: socket.socket):
@@ -75,16 +75,16 @@ def handle_input_from_client(login_server_x_client: socket.socket, login_server_
     conn: Connection = sqlite3.connect("I_hate_sql.db")
     cursor: Cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS users (name_hash TEXT, password_hash_hash TEXT)")
-    data, ip = login_server_x_client.recvfrom(1024)
-    if ip in USER_IPS:
-        name, password_hash, flag = data.decode().split("$")
-        name_hash, password_hash_hash = sha256(name.encode()).hexdigest(), sha256(password_hash.encode()).hexdigest()
+    data, client_ip = login_server_x_client.recvfrom(1024)
+    if client_ip in USER_IPS:
+        client_name, password_hash, flag = data.decode().split("$")
+        name_hash, password_hash_hash = sha256(client_name.encode()).hexdigest(), sha256(password_hash.encode()).hexdigest()           # hash technique
         to_send: str = 'Incorrect data'
         match flag:
             case "log_in":
                 if in_table([name_hash, password_hash_hash], cursor):
                     to_send = "log_in successful"
-                    USER_IPS.remove(ip)
+                    USER_IPS.remove(client_ip)
                 else:
                     to_send = "incorrect username/password"
             case "sign_up":
@@ -92,12 +92,12 @@ def handle_input_from_client(login_server_x_client: socket.socket, login_server_
                     cursor.execute("INSERT INTO users VALUES (?, ?)", [name_hash, password_hash_hash])
                     conn.commit()
                     to_send = "Created username successfully"
-                    USER_IPS.remove(ip)
+                    USER_IPS.remove(client_ip)
                 else:
                     to_send = "This username has been already taken"
-        login_server_x_client.sendto(to_send.encode(), ip)
+        login_server_x_client.sendto(to_send.encode(), client_ip)                          # May or may not be successful
         if to_send in ["log_in successful", "Created username successfully"]:
-            login_server_x_central_server.sendto(f"This user has been verified, {ip}, {name}".encode(), CENTRAL_ADDR)
+            login_server_x_central_server.sendto(f"This user has been verified, {client_ip}, {client_name}".encode(), CENTRAL_ADDR)           # 100% successful
     Thread(target=handle_input_from_client, args=(login_server_x_client, login_server_x_central_server)).start()
 
 

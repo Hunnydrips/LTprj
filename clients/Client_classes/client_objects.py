@@ -1,4 +1,5 @@
 import pygame
+import socket
 import time
 import math
 
@@ -74,7 +75,7 @@ class Animation:
 
 
 class ClientPlayer:
-    def __init__(self, username: str, pos: Point = Point(250, 250), status: str = "idle", angle: float = 0):
+    def __init__(self, username: str, sock: socket.socket = None, pos: Point = Point(250, 250), status: str = "idle", angle: float = 0):
         """
         My main class that is implemented with the animation class as included down here
         :param username: the player's username, string
@@ -89,6 +90,7 @@ class ClientPlayer:
             "shoot": Animation("Client_classes/shotgun/shoot/survivor-shoot_shotgun_", 3, .0833)
         }
 
+        self.client_sock: socket.socket = sock
         self.collision_center: Point = pos
         self.angle: float = angle
         self.username = username
@@ -126,7 +128,7 @@ class ClientPlayer:
             self.last_shot = time.time()
             self.left_in_magazine -= 1
             self.lasers.append(ClientLaser(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center), mouse_x, mouse_y))
-            print(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center))
+            # print(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center))
             self.status = "shoot"
             self.animations[self.status].reset()
 

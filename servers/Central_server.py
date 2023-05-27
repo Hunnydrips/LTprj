@@ -3,6 +3,7 @@ import socket
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
+BASE_PORT: int = 8100
 
 
 def init_central_server() -> tuple:
@@ -11,11 +12,11 @@ def init_central_server() -> tuple:
     :return: A tuple of the three necessitated sockets for the game
     """
     central_server_x_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    central_server_x_client.bind(("0.0.0.0", 8100))
+    central_server_x_client.bind(("0.0.0.0", BASE_PORT))
     central_server_x_login_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    central_server_x_login_server.bind(("0.0.0.0", 8101))
+    central_server_x_login_server.bind(("0.0.0.0", BASE_PORT + 1))
     central_server_x_game_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    central_server_x_game_server.bind(("0.0.0.0", 8102))
+    central_server_x_game_server.bind(("0.0.0.0", BASE_PORT + 2))
     return central_server_x_client, central_server_x_login_server, central_server_x_game_server
 
 
@@ -50,11 +51,12 @@ def connect_to_game(central_server_x_game_server: socket.socket) -> tuple:
                 game_ip_for_server: tuple | str = ip
             case b"YJ9":
                 game_ip_for_client: tuple | str = ip
+    Thread(target=connect_to_game, args=(central_server_x_game_server,)).start()  # thread for each game_x_client socket created
     return game_ip_for_client, game_ip_for_server
 
 
-def handle_request_from_client(central_server_x_client: socket.socket, central_server_x_login_server: socket.socket,
-                               log_serv_ip_for_server: tuple, log_serv_ip_for_clients: tuple):
+def handle_packet_from_client(central_server_x_client: socket.socket, central_server_x_login_server: socket.socket,
+                              log_serv_ip_for_server: tuple, log_serv_ip_for_clients: tuple):
     """
     Handle client packets generally
     :param central_server_x_client: central server and client socket
@@ -63,13 +65,13 @@ def handle_request_from_client(central_server_x_client: socket.socket, central_s
     :param log_serv_ip_for_clients: login server ip for clients
     :return: Nothing
     """
+    print(log_serv_ip_for_server)
     while True:
-        data, ip = central_server_x_client.recvfrom(1024)
-        logging.debug(f"User has entered, details: {data, ip}")
+        data, client_ip = central_server_x_client.recvfrom(1024)
+        logging.debug(f"User has entered, details: {data, client_ip}")
         if data == b"log_requested":
-            print(log_serv_ip_for_server)
-            central_server_x_login_server.sendto(str(ip).encode(), log_serv_ip_for_server)
-            central_server_x_client.sendto(str(log_serv_ip_for_clients).encode(), ip)
+            central_server_x_login_server.sendto(str(client_ip).encode(), log_serv_ip_for_server)
+            central_server_x_client.sendto(str(log_serv_ip_for_clients).encode(), client_ip)
 
 
 def handle_packet_from_login_server(central_server_x_login_server: socket.socket, central_server_x_game_server: socket.socket, central_server_x_client: socket.socket,
@@ -83,8 +85,7 @@ def handle_packet_from_login_server(central_server_x_login_server: socket.socket
     :param game_serv_ip_for_clients: game server ip for clients
     :return: Nothing
     """
-    data, ip = central_server_x_login_server.recvfrom(1024)
-    data = data.decode()
+    data = central_server_x_login_server.recvfrom(1024)[0].decode()
     if data.startswith("This user has been verified, "):
         data = data[30:].replace("'", "").replace(")", "")
         data = data.split(", ")
@@ -98,11 +99,11 @@ def handle_packet_from_login_server(central_server_x_login_server: socket.socket
 def main():
     central_server_x_client, central_server_x_login_server, central_server_x_game_server = init_central_server()
     login_serv_ip_for_client, login_serv_ip = connect_to_login(central_server_x_login_server)
-    Thread(target=handle_request_from_client, args=(central_server_x_client, central_server_x_login_server, login_serv_ip, login_serv_ip_for_client)).start()
+    Thread(target=handle_packet_from_client, args=(central_server_x_client, central_server_x_login_server, login_serv_ip, login_serv_ip_for_client)).start()
     game_serv_ip_for_client, game_serv_ip = connect_to_game(central_server_x_game_server)
     handle_packet_from_login_server(central_server_x_login_server, central_server_x_game_server, central_server_x_client, game_serv_ip, game_serv_ip_for_client)
     while True:
-        pass
+        pass  # let the main thread run by
     central_server_x_client.close()
     central_server_x_login_server.close()
     central_server_x_game_server.close()

@@ -1,4 +1,7 @@
 import time
+import socket
+import math
+from dataclasses import dataclass
 
 
 class Point:
@@ -27,12 +30,13 @@ class Point:
 
 
 class ServerPlayer:
-    def __init__(self, username: str, address: tuple):
+    def __init__(self, username: str, address: tuple, sock: socket.socket):
         """
         Basic constructor for a server object player, used to make needed attributes clearer
         :param username: player's username
         :param address: player's address in local subnet
         """
+        self.personal_game_sock: socket.socket = sock
         self.x_dir: int = 0
         self.y_dir: int = 0
         self.username: str = username
@@ -47,9 +51,16 @@ class ServerPlayer:
         :return: if the player has moved longer than .05 seconds
         """
         self.collision_center.x += self.x_dir // 2 ** 3
-        self.collision_center.y += self.y_dir // 2 ** 3              # an estimation for the difference in time complexity
-        if time.time() - self.time_last_moved >= 60 * 5:             # in each five minutes, check the position in game server
+        self.collision_center.y += self.y_dir // 2 ** 3  # an estimation for the difference in time complexity
+        if time.time() - self.time_last_moved >= 60 * 5:  # in each five minutes, check the position in game server
             self.time_last_moved = time.time()
             return True
         return False
 
+
+@dataclass
+class ServerLaser:
+    x: float
+    y: float
+    target_x: int
+    target_y: int
