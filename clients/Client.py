@@ -18,7 +18,6 @@ event_to_packet: dict = {
     pygame.K_a: ["left", -1],
     pygame.K_w: ["up", -1],
     pygame.K_s: ["down", 1],
-    pygame.K_r: "reload"
 }
 
 enemy_player_dict: Dict[NAME, ClientPlayer] = {}

@@ -210,9 +210,6 @@ class ClientPlayer:
         self.collision_center.y += self.y_dir * VEL_CONST
 
 
-
-
-
 def pos_by_distance_and_angle(player_angle: float, angle_const: float, distance: float, collision_center: Point) -> tuple:
     """
     A more complex function involving mathematical operations and analytical geometry, converts polar coordinates to cartesian ones

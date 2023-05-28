@@ -1,5 +1,4 @@
 from threading import Thread
-from collections import deque
 from Server_classes.logic_functions import *
 from typing import Tuple
 import logging
@@ -7,8 +6,6 @@ import socket
 import json
 
 ADDR = Tuple[str, int]
-ACTIVE_PLAYERS: list[ServerPlayer] = []
-IPS: list = []
 ACTIVE_PLAYERS_DICT: dict[ADDR, ServerPlayer] = {}
 CENTRAL_ADDR: tuple = ("127.0.0.1", 8102)
 STATIC_PORT: int = 8302
@@ -62,7 +59,6 @@ def receive_and_handle_request_from_central(game_server_x_central_server: socket
     data: list = game_server_x_central_server.recvfrom(1024)[0].decode().split(", ")
     Thread(target=receive_and_handle_request_from_central, args=(game_server_x_central_server,)).start()
     address: tuple[str, int] = (data[0][2:-1], int(data[1][:-1]))
-    IPS.append(address)
     P: ServerPlayer = ServerPlayer(username=data[2], address=address, sock=game_server_x_client)
     ACTIVE_PLAYERS_DICT[address] = P
     P.collision_center = Point(200, 200)
@@ -82,10 +78,9 @@ def handle_packet_from_player(game_server_x_client: socket.socket):
             data, ip = game_server_x_client.recvfrom(1024)
             msg = json.loads(data.decode())
             print(msg)
-            if ip not in IPS or msg["cmd"] == "begin":
+            if ip not in ACTIVE_PLAYERS_DICT or msg["cmd"] == "begin":
                 logging.debug("Packet has now reached server and is now being filtered")
             P: ServerPlayer = ...
-            L: ServerLaser = ...
             try:
                 P: ServerPlayer = ACTIVE_PLAYERS_DICT[ip]
             except Exception as e:
@@ -108,12 +103,9 @@ def handle_packet_from_player(game_server_x_client: socket.socket):
                     elif direction in directions_y:
                         P.y_dir = 0
                 case "add":
-                    json_str: dict = json.loads(msg["player_to_add"])  # had to turn it into a dictionary
+                    json_str: JSONStr = json.loads(msg["player_to_add"])  # had to turn it into a dictionary
 
                     P.update_queue.append(json_str)
-                    if json_str:
-                        P.json_str = json_str
-                    print(P.json_str)
                 case "show_proj":
                     L: ServerLaser = ServerLaser(*msg['start_coordinates'], *msg['target_coordinates'])
                     send_laser_info_to_clients(P=P, L=L)
@@ -123,26 +115,12 @@ def handle_packet_from_player(game_server_x_client: socket.socket):
             logging.debug(f"Exception found in handle_packet, error code: {e}")
 
 
-# def check_player_pos_validity(game_server_x_client: socket.socket, P: ServerPlayer):
-#     """
-#     Prevents players from jumping and operating inconspicuous teleportation
-#     :param game_server_x_client: socket that contains connection between game server and client
-#     :param P: every player object
-#     :return: Nothing
-#     """
-#     while P in ACTIVE_PLAYERS:
-#         if P.x_dir or P.y_dir:
-#             if check_collision(P):
-#                 if P.move() and P.json_str:
-#                     client_x, client_y = P.json_str["pos"]
-#                     if abs(client_x - P.collision_center.x) >= 16000 or abs(client_y - P.collision_center.y) >= 9000:
-#                         logging.debug(f"Player has made a ridiculous jump and should be disconnected for it!!!\nPlayer name: {P.json_str['name']}\n")
-#                         ACTIVE_PLAYERS.remove(P)  # removed player from active list
-#                         IPS.remove(P.address)  # removed ip from IP list
-#                         msg: dict = {
-#                             "cmd": "disconnect"
-#                         }
-#                         game_server_x_client.sendto(json.dumps(msg).encode(), P.address)  # closing player's game
+def delete_player(P: ServerPlayer):
+    del ACTIVE_PLAYERS_DICT[P.address]  # removed player from active list
+    msg: dict = {
+        "cmd": "disconnect"
+    }
+    P.personal_game_sock.sendto(json.dumps(msg).encode(), P.address)  # closing player's game
 
 
 def check_bounds(P1: ServerPlayer, P2: ServerPlayer) -> bool:
@@ -153,12 +131,6 @@ def check_bounds(P1: ServerPlayer, P2: ServerPlayer) -> bool:
     :return: ...
     """
     return abs(P1.collision_center.x - P2.collision_center.x) < 1920 and abs(P1.collision_center.y - P2.collision_center.y) < 1080
-
-
-def check_movement(P: ServerPlayer, prev_angle: float, prev_sprite: int) -> bool:
-    if P.json_str:
-        return prev_angle != P.json_str['angle'] and prev_sprite != P.json_str['current_sprite']
-    return False
 
 
 def update_player_images_for_clients(game_server_x_client: socket.socket, P: ServerPlayer):
@@ -177,7 +149,10 @@ def update_player_images_for_clients(game_server_x_client: socket.socket, P: Ser
             if not P.online:
                 return  # end thread since player disconnected
             continue
-        json_str: dict = P.update_queue.popleft()
+        json_str: JSONStr = P.update_queue.popleft()
+        if not P.check_validity(tuple(json_str["pos"])):
+            delete_player(P)
+            return
         for player in ACTIVE_PLAYERS_DICT.values():
             if check_bounds(P, player) and player != P:
                 msg["json_str"] = json_str

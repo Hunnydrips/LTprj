@@ -1,9 +1,17 @@
-import time
-import socket
-import math
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque
+from typing import Deque, TypedDict
+import logging
+import time
+import socket
+
+
+class JSONStr(TypedDict):
+    pos: list
+    angle: float
+    status: str
+    username: str
+    current_sprite: int
 
 
 class Point:
@@ -45,21 +53,18 @@ class ServerPlayer:
         self.address: tuple = address
         self.time_last_moved: float = time.time()
         self.collision_center: Point = Point(0, 0)
-        self.json_str: dict = {}
         self.update_queue: Deque[dict] = deque()
         self.online = True
+        self.pkt_counter: int = 0           # resets after every n packets
+        self.pos_before_counter_reset: Point = Point(0, 0)
 
-    def move(self) -> bool:
-        """
-        move function for player, calcs coordinates
-        :return: if the player has moved longer than .05 seconds
-        """
-        self.collision_center.x += self.x_dir // 2 ** 3
-        self.collision_center.y += self.y_dir // 2 ** 3  # an estimation for the difference in time complexity
-        if time.time() - self.time_last_moved >= 20:  # in each five minutes, check the position in game server
-            self.time_last_moved = time.time()
+    def check_validity(self, position: tuple) -> bool:
+        self.pkt_counter += 1
+        if not (self.pkt_counter >= 25):
             return True
-        return False
+        self.pkt_counter %= 25
+        client_x, client_y = position
+        return not abs(client_x - self.pos_before_counter_reset.x) >= 16000 or abs(client_y - self.pos_before_counter_reset.y) >= 9000
 
 
 @dataclass
