@@ -1,7 +1,9 @@
 import time
 import socket
 import math
+from collections import deque
 from dataclasses import dataclass
+from typing import Deque
 
 
 class Point:
@@ -44,6 +46,8 @@ class ServerPlayer:
         self.time_last_moved: float = time.time()
         self.collision_center: Point = Point(0, 0)
         self.json_str: dict = {}
+        self.update_queue: Deque[dict] = deque()
+        self.online = True
 
     def move(self) -> bool:
         """

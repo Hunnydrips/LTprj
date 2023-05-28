@@ -1,11 +1,15 @@
 from threading import Thread
+from collections import deque
 from Server_classes.logic_functions import *
+from typing import Tuple
 import logging
 import socket
 import json
 
-ACTIVE_PLAYERS: list = []
+ADDR = Tuple[str, int]
+ACTIVE_PLAYERS: list[ServerPlayer] = []
 IPS: list = []
+ACTIVE_PLAYERS_DICT: dict[ADDR, ServerPlayer] = {}
 CENTRAL_ADDR: tuple = ("127.0.0.1", 8102)
 STATIC_PORT: int = 8302
 DEFAULT_IP: str = "0.0.0.0"
@@ -56,14 +60,14 @@ def receive_and_handle_request_from_central(game_server_x_central_server: socket
     game_server_x_client = init_game_server()
     send_initial_signals(game_server_x_central_server=game_server_x_central_server, game_server_x_client=game_server_x_client)
     data: list = game_server_x_central_server.recvfrom(1024)[0].decode().split(", ")
-    Thread(target=receive_and_handle_request_from_central, args=(game_server_x_client, game_server_x_central_server)).start()
+    Thread(target=receive_and_handle_request_from_central, args=(game_server_x_central_server,)).start()
     address: tuple[str, int] = (data[0][2:-1], int(data[1][:-1]))
     IPS.append(address)
     P: ServerPlayer = ServerPlayer(username=data[2], address=address, sock=game_server_x_client)
-    ACTIVE_PLAYERS.append(P)
-    ACTIVE_PLAYERS[-1].collision_center = Point(200, 200)
-    Thread(target=check_player_pos_validity, args=(P.personal_game_sock, ACTIVE_PLAYERS[-1])).start()
-    Thread(target=update_player_images_for_clients, args=(P.personal_game_sock, ACTIVE_PLAYERS[-1])).start()
+    ACTIVE_PLAYERS_DICT[address] = P
+    P.collision_center = Point(200, 200)
+    # Thread(target=check_player_pos_validity, args=(P.personal_game_sock, P)).start()
+    Thread(target=update_player_images_for_clients, args=(P.personal_game_sock, P)).start()
     return game_server_x_client
 
 
@@ -80,10 +84,10 @@ def handle_packet_from_player(game_server_x_client: socket.socket):
             print(msg)
             if ip not in IPS or msg["cmd"] == "begin":
                 logging.debug("Packet has now reached server and is now being filtered")
-            P: ServerPlayer | Ellipsis = ...
-            L: ServerLaser | Ellipsis = ...
+            P: ServerPlayer = ...
+            L: ServerLaser = ...
             try:
-                P: ServerPlayer = ACTIVE_PLAYERS[IPS.index(ip)]  # problem is here, player might not exist due to removal in anti-cheat
+                P: ServerPlayer = ACTIVE_PLAYERS_DICT[ip]
             except Exception as e:
                 logging.debug(f"An exception has occurred {e}")
             match msg["cmd"]:
@@ -105,6 +109,8 @@ def handle_packet_from_player(game_server_x_client: socket.socket):
                         P.y_dir = 0
                 case "add":
                     json_str: dict = json.loads(msg["player_to_add"])  # had to turn it into a dictionary
+
+                    P.update_queue.append(json_str)
                     if json_str:
                         P.json_str = json_str
                     print(P.json_str)
@@ -117,26 +123,42 @@ def handle_packet_from_player(game_server_x_client: socket.socket):
             logging.debug(f"Exception found in handle_packet, error code: {e}")
 
 
-def check_player_pos_validity(game_server_x_client: socket.socket, P: ServerPlayer):
+# def check_player_pos_validity(game_server_x_client: socket.socket, P: ServerPlayer):
+#     """
+#     Prevents players from jumping and operating inconspicuous teleportation
+#     :param game_server_x_client: socket that contains connection between game server and client
+#     :param P: every player object
+#     :return: Nothing
+#     """
+#     while P in ACTIVE_PLAYERS:
+#         if P.x_dir or P.y_dir:
+#             if check_collision(P):
+#                 if P.move() and P.json_str:
+#                     client_x, client_y = P.json_str["pos"]
+#                     if abs(client_x - P.collision_center.x) >= 16000 or abs(client_y - P.collision_center.y) >= 9000:
+#                         logging.debug(f"Player has made a ridiculous jump and should be disconnected for it!!!\nPlayer name: {P.json_str['name']}\n")
+#                         ACTIVE_PLAYERS.remove(P)  # removed player from active list
+#                         IPS.remove(P.address)  # removed ip from IP list
+#                         msg: dict = {
+#                             "cmd": "disconnect"
+#                         }
+#                         game_server_x_client.sendto(json.dumps(msg).encode(), P.address)  # closing player's game
+
+
+def check_bounds(P1: ServerPlayer, P2: ServerPlayer) -> bool:
     """
-    Prevents players from jumping and operating inconspicuous teleportation
-    :param game_server_x_client: socket that contains connection between game server and client
-    :param P: every player object
-    :return: Nothing
+    Checks the bounds of two players in sight
+    :param P1: First player
+    :param P2: Second player
+    :return: ...
     """
-    while P in ACTIVE_PLAYERS:
-        if P.x_dir or P.y_dir:
-            if check_collision(P):
-                if P.move() and P.json_str:
-                    client_x, client_y = P.json_str["pos"]
-                    if abs(client_x - P.collision_center.x) >= 16000 or abs(client_y - P.collision_center.y) >= 9000:
-                        logging.debug(f"Player has made a ridiculous jump and should be disconnected for it!!!\nPlayer name: {P.json_str['name']}\n")
-                        ACTIVE_PLAYERS.remove(P)  # removed player from active list
-                        IPS.remove(P.address)  # removed ip from IP list
-                        msg: dict = {
-                            "cmd": "disconnect"
-                        }
-                        game_server_x_client.sendto(json.dumps(msg).encode(), P.address)  # closing player's game
+    return abs(P1.collision_center.x - P2.collision_center.x) < 1920 and abs(P1.collision_center.y - P2.collision_center.y) < 1080
+
+
+def check_movement(P: ServerPlayer, prev_angle: float, prev_sprite: int) -> bool:
+    if P.json_str:
+        return prev_angle != P.json_str['angle'] and prev_sprite != P.json_str['current_sprite']
+    return False
 
 
 def update_player_images_for_clients(game_server_x_client: socket.socket, P: ServerPlayer):
@@ -146,40 +168,45 @@ def update_player_images_for_clients(game_server_x_client: socket.socket, P: Ser
     :param P: every player object
     :return: Nothing
     """
-    prev_angle: float = 0
-    prev_sprite: int = 0
-    changed_condition: bool = False
-    while P in ACTIVE_PLAYERS:
-        msg: dict = {
-            "cmd": "load",
-            "json_strs": []
-        }
-        for i, player in enumerate(ACTIVE_PLAYERS):
-            if abs(player.collision_center.x - P.collision_center.x) < 1920 and abs(player.collision_center.y - P.collision_center.y) < 1080 and player is not P and player.json_str:
-                if player.json_str not in msg["json_strs"]:
-                    msg["json_strs"].append(player.json_str)
-                if prev_angle != player.json_str['angle'] and prev_sprite != player.json_str['current_sprite']:
-                    new_angle: float = player.json_str['angle']
-                    new_sprite: int = player.json_str['current_sprite']
-                    try:
-                        msg["json_strs"][i]['angle'] = new_angle
-                        msg["json_strs"][i]['current_sprite'] = new_sprite
-                    except IndexError or Exception as e:
-                        logging.warning(f"Don't mind the Index error or the potential {e}\n")
-                        logging.info("Small thing that doesn't need to be taken care of")
-                    finally:
-                        prev_angle = new_angle
-                        prev_sprite = new_sprite
-                        changed_condition = True
-        try:
-            if len(msg["json_strs"]) and changed_condition:
-                logging.debug(f"{changed_condition}")
-                game_server_x_client.sendto(json.dumps(msg).encode(), P.address)
-                changed_condition = False
-        except Exception as e:
-            logging.debug(f"An error occurred trying to send graphics to players, error {e}")
-        finally:
-            time.sleep(.001)  # a bit of waiting so to not entirely flood subnet
+    msg = {
+        "cmd": "load"
+    }
+    while True:
+        if not P.update_queue:
+            time.sleep(0)
+            if not P.online:
+                return  # end thread since player disconnected
+            continue
+        # if not check_movement(P, prev_angle, prev_sprite):
+        #     time.sleep(0)
+        #     continue
+        json_str: dict = P.update_queue.popleft()
+        for player in ACTIVE_PLAYERS_DICT.values():
+            # if player.json_str:
+            #     new_angle: float = player.json_str['angle']
+            #     new_sprite: int = player.json_str['current_sprite']
+            if check_bounds(P, player) and player != P:
+                # if player.json_str not in msg["json_strs"]:
+                msg["json_str"] = json_str
+                game_server_x_client.sendto(json.dumps(msg).encode(), player.address)
+                # try:
+                #     msg["json_strs"][i]['angle'] = new_angle
+                #     msg["json_strs"][i]['current_sprite'] = new_sprite
+                # except IndexError or Exception:
+                #     pass  # No need to do anything here because it isn't really going to do anything anyway
+                # finally:
+                #     prev_angle = new_angle
+                #     prev_sprite = new_sprite
+                #     changed_condition = True
+        # try:
+        #     if len(msg["json_strs"]) and changed_condition:
+        #         logging.debug(f"{changed_condition}")
+        #         game_server_x_client.sendto(json.dumps(msg).encode(), P.address)
+        #         changed_condition = False
+        # except Exception as e:
+        #     logging.debug(f"An error occurred trying to send graphics to players, error {e}")
+        # finally:
+        #     time.sleep(.001)  # a bit of waiting so to not entirely flood subnet
 
 
 def send_laser_info_to_clients(P: ServerPlayer, L: ServerLaser):

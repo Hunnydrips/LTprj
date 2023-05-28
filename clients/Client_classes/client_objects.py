@@ -3,6 +3,8 @@ import socket
 import time
 import math
 
+VEL_CONST: int = 10
+
 
 class Point:
     def __init__(self, x: int, y: int):
@@ -93,8 +95,8 @@ class ClientPlayer:
         self.client_sock: socket.socket = sock
         self.collision_center: Point = pos
         self.angle: float = angle
-        self.username = username
-        self.status = status
+        self.username: str = username
+        self.status: str = status
         self.next_status: str = "idle"
         self.x_dir: int = 0
         self.y_dir: int = 0
@@ -145,8 +147,8 @@ class ClientPlayer:
         move function for player, updates coordinates
         :return: Nothing
         """
-        self.collision_center.x += self.x_dir * 10
-        self.collision_center.y += self.y_dir * 10
+        self.collision_center.x += self.x_dir * VEL_CONST
+        self.collision_center.y += self.y_dir * VEL_CONST
 
 
 class ClientLaser:
@@ -165,8 +167,8 @@ class ClientLaser:
         self.angle = math.atan2(float(target_y - self.y), float(target_x - self.x))
         self.frames_per_state: int = 20
         self.frames_at_curr_state: int = 0
-        self.v_x: float = float(18 * math.cos(self.angle))
-        self.v_y: float = float(18 * math.sin(self.angle))
+        self.v_x: float = float(VEL_CONST * 1.8 * math.cos(self.angle))
+        self.v_y: float = float(VEL_CONST * 1.8 * math.sin(self.angle))
         self.angle *= -180 / math.pi
         self.state: int = 0
         self.frames_R: list = []

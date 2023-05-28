@@ -87,58 +87,88 @@ def log_in_or_sign_up(client_x_everything: socket.socket, login_server_ip: tuple
         return True
 
 
-def handle_packet_from_game_server(client_x_everything: socket.socket, P: ClientPlayer):
+def handle_packet_from_game_server(P: ClientPlayer):
     """
     Handle packets coming from game server
-    :param client_x_everything: player socket
     :param P: player object
     :return: Nothing
     """
+    prev_pos: tuple | None = None
+    predicted_x_dir, predicted_y_dir = 0, 0
     while True:
-        data, ip = client_x_everything.recvfrom(1024)
+        data, ip = P.client_sock.recvfrom(1024)
         msg = json.loads(data.decode())
         print(msg)
         match msg["cmd"]:
             case "load":
-                for json_str in msg["json_strs"]:
-                    attr_dict: dict = json_str  # json_str is already in dictionary form
-                    player_to_display: ClientPlayer = ClientPlayer(
-                        username=attr_dict["name"],
-                        pos=Point(*attr_dict["pos"]),
-                        status=attr_dict["status"],
-                        angle=attr_dict["angle"] / -180 * math.pi
-                    )
-                    player_to_display.animations[player_to_display.status].current_sprite = attr_dict["current_sprite"]
-                    same_username: bool = False
-                    for i, player in enumerate(players_to_display):
-                        if player.username == player_to_display.username:
-                            same_username = True
-                            players_to_display[i] = player_to_display
-                    if not same_username:
-                        players_to_display.append(player_to_display)
+                attr_dict: dict = msg["json_str"]  # json_str is already in dictionary form
+                player_to_display: ClientPlayer = ClientPlayer(
+                    username=attr_dict["name"],
+                    pos=Point(*attr_dict["pos"]),
+                    status=attr_dict["status"],
+                    angle=attr_dict["angle"] / -180 * math.pi
+                )
+
+                # if prev_pos != attr_dict["pos"] and prev_pos:
+                #     print("I got here")
+                #     predicted_x_dir, predicted_y_dir = get_dirs_of_other_players(initial_coordinates=prev_pos, next_coordinates=attr_dict["pos"])
+                #     prev_pos = attr_dict["pos"]
+                # player_to_display.x_dir, player_to_display.y_dir = predicted_x_dir, predicted_y_dir
+
+                player_to_display.animations[player_to_display.status].current_sprite = attr_dict["current_sprite"]
+                same_username: bool = False
+                for i, player in enumerate(players_to_display):
+                    if player.username == player_to_display.username:
+                        same_username = True
+                        players_to_display[i] = player_to_display
+                if not same_username:
+                    players_to_display.append(player_to_display)
             case "show_laser":
                 laser_to_show = ClientLaser(*msg['start_coordinates'], *msg['target_coordinates'])
                 P.lasers.append(laser_to_show)
                 move_all_lasers(P)
             case "disconnect":
                 print("Player should now be disconnected")
-                shutdown_client(client_x_everything=client_x_everything)
+                shutdown_client(client_x_everything=P.client_sock)
 
 
-def display_players():
+def display_players(P: ClientPlayer):
     """
     Minor shortening so to explain work and endeavour, consider errors in this funcs that may happen and how to handle them
     :return: Nothing
     """
     for player in players_to_display:
-        try:
-            animate_player(player)
-            tmp_angle = player.angle
-            blit_player(screen, player, player.angle)
-            player.angle = tmp_angle
-            move_all_lasers(player)
-        except pygame.error as e:
-            print(e)
+        if player is not P:
+            try:
+                animate_player(player)
+                tmp_angle = player.angle  # angle changes in the process, I've got to have a copy
+                blit_player(screen, player, player.angle)
+                player.angle = tmp_angle
+                # player.move()
+                move_all_lasers(player)
+            except pygame.error or Exception as e:
+                print(e)
+
+
+def get_dirs_of_other_players(initial_coordinates: tuple[int, int], next_coordinates: tuple[int, int]) -> tuple[int, int]:
+    """
+    Small function that gets two coordinate tuples and then figures out the player's destined direction
+    :param initial_coordinates: Start coordinates in retrospect
+    :param next_coordinates: Using a server packet to get these coordinates
+    :return: a tuple consisting of both y and x directions
+    """
+    start_x, start_y = initial_coordinates
+    end_x, end_y = next_coordinates
+    if start_x != end_x:
+        predicted_x_dir: int = (start_x - end_x) // abs(start_x - end_x)
+    else:
+        predicted_x_dir: int = 0
+    if start_y != end_y:
+        predicted_y_dir: int = (start_y - end_y) // abs(start_y - end_y)
+    else:
+        predicted_y_dir: int = 0
+    print(f"Prediction: {predicted_x_dir, predicted_y_dir}")
+    return predicted_x_dir, predicted_y_dir
 
 
 def send_json_str_to_server(game_server_ip: tuple, P: ClientPlayer):
@@ -148,14 +178,14 @@ def send_json_str_to_server(game_server_ip: tuple, P: ClientPlayer):
     :param P: player object
     :return: Nothing
     """
-    prev_angle = P.angle
+    prev_angle: float = P.angle
     while True:
         if prev_angle != P.angle:
             player_attr: dict = {
                 "pos": P.collision_center.to_tuple(),
                 "angle": P.angle,
                 "status": P.status,
-                "name": "Alice",
+                "name": P.username,
                 "current_sprite": P.animations[P.status].current_sprite
             }
 
@@ -206,11 +236,11 @@ def shutdown_client(client_x_everything: socket.socket):
 
 def main():
     init_settings()
-    client_x_everything, game_server_ip = log_in()
     pygame.init()
+    client_x_everything, game_server_ip = log_in()
     clock = pygame.time.Clock()
     P: ClientPlayer = ClientPlayer(username="Alice", sock=client_x_everything)
-    Thread(target=handle_packet_from_game_server, args=(client_x_everything, P)).start()
+    Thread(target=handle_packet_from_game_server, args=(P,)).start()
     Thread(target=send_json_str_to_server, args=(game_server_ip, P)).start()
     running = True
     while running:
@@ -256,15 +286,15 @@ def main():
                             "target_coordinates": pygame.mouse.get_pos()
                         }
                         P.client_sock.sendto(json.dumps(msg).encode(), game_server_ip)
-        if check_collision(P):
+        if check_collision(P=P):
             P.move()  # REMOVES STUTTERING BUG!!!
         c_x, c_y = get_camera_coordinates()
-        paint_map(screen)
-        animate_player(P)
-        display_players()  # This function is not fully operational, but it does the minimal job for the time being
+        paint_map(screen=screen)
+        animate_player(P=P)
+        display_players(P=P)  # This function is not fully operational, but it does the minimal job for the time being
         mouse_x, mouse_y = pygame.mouse.get_pos()
-        blit_player(screen, P, math.atan2(mouse_y - P.collision_center.y + c_y, mouse_x - P.collision_center.x + c_x))
-        move_all_lasers(P)
+        blit_player(screen=screen, P=P, angle=math.atan2(mouse_y - P.collision_center.y + c_y, mouse_x - P.collision_center.x + c_x))
+        move_all_lasers(P=P)
         clock.tick(60)
         pygame.display.update()
 
