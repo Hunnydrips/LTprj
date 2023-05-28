@@ -265,13 +265,15 @@ def main():
                 case pygame.MOUSEBUTTONDOWN:
                     if event.button == pygame.BUTTON_LEFT:
                         c_x, c_y = get_camera_coordinates()
-                        P.shoot(pygame.mouse.get_pos()[0] + c_x, pygame.mouse.get_pos()[1] + c_y)
-                        msg: dict = {
-                            "cmd": "show_proj",
-                            "start_coordinates": (P.lasers[-1].x, P.lasers[-1].y),
-                            "target_coordinates": pygame.mouse.get_pos()
-                        }
-                        P.client_sock.sendto(json.dumps(msg).encode(), game_server_ip)
+                        mouse_x, mouse_y = pygame.mouse.get_pos()
+                        laser = P.shoot(mouse_x + c_x, mouse_y + c_y)
+                        if laser is not None:
+                            msg: dict = {
+                                "cmd": "show_proj",
+                                "start_coordinates": (laser.x, laser.y),
+                                "target_coordinates": (mouse_x, mouse_y)
+                            }
+                            P.client_sock.sendto(json.dumps(msg).encode(), game_server_ip)
         if check_collision(P=P):
             P.move()  # REMOVES STUTTERING BUG!!!
         c_x, c_y = get_camera_coordinates()

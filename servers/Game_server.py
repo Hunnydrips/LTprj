@@ -177,36 +177,11 @@ def update_player_images_for_clients(game_server_x_client: socket.socket, P: Ser
             if not P.online:
                 return  # end thread since player disconnected
             continue
-        # if not check_movement(P, prev_angle, prev_sprite):
-        #     time.sleep(0)
-        #     continue
         json_str: dict = P.update_queue.popleft()
         for player in ACTIVE_PLAYERS_DICT.values():
-            # if player.json_str:
-            #     new_angle: float = player.json_str['angle']
-            #     new_sprite: int = player.json_str['current_sprite']
             if check_bounds(P, player) and player != P:
-                # if player.json_str not in msg["json_strs"]:
                 msg["json_str"] = json_str
                 game_server_x_client.sendto(json.dumps(msg).encode(), player.address)
-                # try:
-                #     msg["json_strs"][i]['angle'] = new_angle
-                #     msg["json_strs"][i]['current_sprite'] = new_sprite
-                # except IndexError or Exception:
-                #     pass  # No need to do anything here because it isn't really going to do anything anyway
-                # finally:
-                #     prev_angle = new_angle
-                #     prev_sprite = new_sprite
-                #     changed_condition = True
-        # try:
-        #     if len(msg["json_strs"]) and changed_condition:
-        #         logging.debug(f"{changed_condition}")
-        #         game_server_x_client.sendto(json.dumps(msg).encode(), P.address)
-        #         changed_condition = False
-        # except Exception as e:
-        #     logging.debug(f"An error occurred trying to send graphics to players, error {e}")
-        # finally:
-        #     time.sleep(.001)  # a bit of waiting so to not entirely flood subnet
 
 
 def send_laser_info_to_clients(P: ServerPlayer, L: ServerLaser):
@@ -216,20 +191,21 @@ def send_laser_info_to_clients(P: ServerPlayer, L: ServerLaser):
     :param L: The laser corresponding to the one that should be printed
     :return: Nothing
     """
-    for player in ACTIVE_PLAYERS:
-        if abs(player.collision_center.x - P.collision_center.x) < 1920 * 3 and abs(player.collision_center.y - P.collision_center.y) < 1080 * 3 and player is not P:
-            msg: dict = {
-                "cmd": "show_laser",
-                "start_coordinates": (L.x, L.y),
-                "target_coordinates": (L.target_x, L.target_y)
-            }
-            player.personal_game_sock.sendto(json.dumps(msg).encode(), player.address)
+    msg: dict = {
+        "cmd": "show_laser",
+        "start_coordinates": (L.x, L.y),
+        "target_coordinates": (L.target_x, L.target_y)
+    }
+    data = json.dumps(msg).encode()
+    for player in ACTIVE_PLAYERS_DICT.values():
+        if player is not P:
+            player.personal_game_sock.sendto(data, player.address)
 
 
 def main():
     game_server_x_central_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     game_server_x_central_server.bind((DEFAULT_IP, STATIC_PORT - 1))
-    game_server_x_client: socket.socket | Ellipsis = ...
+    game_server_x_client: socket.socket = ...
     running = True
     while running:
         game_server_x_client: socket.socket = receive_and_handle_request_from_central(game_server_x_central_server)

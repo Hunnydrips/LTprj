@@ -56,7 +56,7 @@ class ServerPlayer:
         """
         self.collision_center.x += self.x_dir // 2 ** 3
         self.collision_center.y += self.y_dir // 2 ** 3  # an estimation for the difference in time complexity
-        if time.time() - self.time_last_moved >= 60 * 5:  # in each five minutes, check the position in game server
+        if time.time() - self.time_last_moved >= 20:  # in each five minutes, check the position in game server
             self.time_last_moved = time.time()
             return True
         return False

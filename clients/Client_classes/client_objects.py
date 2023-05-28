@@ -76,81 +76,6 @@ class Animation:
         return False
 
 
-class ClientPlayer:
-    def __init__(self, username: str, sock: socket.socket = None, pos: Point = Point(250, 250), status: str = "idle", angle: float = 0):
-        """
-        My main class that is implemented with the animation class as included down here
-        :param username: the player's username, string
-        :param pos: the player's start position, Point object
-        :param status: the player's current status of animation, string
-        :param angle: angle of player to mouse, float
-        """
-        self.animations: dict = {
-            "idle": Animation("Client_classes/shotgun/idle/survivor-idle_shotgun_", 20, .05),
-            "move": Animation("Client_classes/shotgun/move/survivor-move_shotgun_", 20, .075),
-            "reload": Animation("Client_classes/shotgun/reload/survivor-reload_shotgun_", 20, .075),
-            "shoot": Animation("Client_classes/shotgun/shoot/survivor-shoot_shotgun_", 3, .0833)
-        }
-
-        self.client_sock: socket.socket = sock
-        self.collision_center: Point = pos
-        self.angle: float = angle
-        self.username: str = username
-        self.status: str = status
-        self.next_status: str = "idle"
-        self.x_dir: int = 0
-        self.y_dir: int = 0
-        self.last_shot: int = 0
-        self.left_in_magazine: int = 6
-        self.lasers: list = []
-        self.to_blit = None
-        self.hit_box = None
-
-    def create_image(self, angle: float):
-        """
-        Function that creates my image for pygame, error is here for stuttering
-        :param angle: angle of character and mouse, float that is in radians
-        :return: Nothing
-        """
-        self.angle = angle
-        self.angle *= -180 / math.pi
-        self.angle += 4.5
-        self.to_blit = pygame.transform.rotate(self.animations[self.status].sprite_list[self.animations[self.status].current_sprite], self.angle)               # IN DEGREES
-        self.hit_box = self.to_blit.get_rect()
-        self.hit_box.center = pos_by_distance_and_angle(self.angle, -18.08, -52, self.collision_center)
-
-    def shoot(self, mouse_x: int, mouse_y: int):
-        """
-        Shooting feature, player is able to project laser into game
-        :param mouse_x: x coordinate of mouse
-        :param mouse_y: y coordinate of mouse
-        :return: Nothing
-        """
-        if self.status != "reload" and self.last_shot + 0.25 <= time.time() and self.left_in_magazine:
-            self.last_shot = time.time()
-            self.left_in_magazine -= 1
-            self.lasers.append(ClientLaser(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center), mouse_x, mouse_y))
-            # print(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center))
-            self.status = "shoot"
-            self.animations[self.status].reset()
-
-    def reload(self):
-        """
-        Two lines that assist function in the Client python file in reloading animation
-        :return: Nothing
-        """
-        self.status = "reload"
-        self.left_in_magazine = 6
-
-    def move(self):
-        """
-        move function for player, updates coordinates
-        :return: Nothing
-        """
-        self.collision_center.x += self.x_dir * VEL_CONST
-        self.collision_center.y += self.y_dir * VEL_CONST
-
-
 class ClientLaser:
     def __init__(self, x: float, y: float, target_x: int, target_y: int):
         """
@@ -205,6 +130,87 @@ class ClientLaser:
         self.rect = self.to_blit.get_rect()
         self.rect.center = round(self.x), round(self.y)
         return False
+
+
+class ClientPlayer:
+    def __init__(self, username: str, sock: socket.socket = None, pos: Point = Point(250, 250), status: str = "idle", angle: float = 0):
+        """
+        My main class that is implemented with the animation class as included down here
+        :param username: the player's username, string
+        :param pos: the player's start position, Point object
+        :param status: the player's current status of animation, string
+        :param angle: angle of player to mouse, float
+        """
+        self.animations: dict = {
+            "idle": Animation("Client_classes/shotgun/idle/survivor-idle_shotgun_", 20, .05),
+            "move": Animation("Client_classes/shotgun/move/survivor-move_shotgun_", 20, .075),
+            "reload": Animation("Client_classes/shotgun/reload/survivor-reload_shotgun_", 20, .075),
+            "shoot": Animation("Client_classes/shotgun/shoot/survivor-shoot_shotgun_", 3, .0833)
+        }
+
+        self.client_sock: socket.socket = sock
+        self.collision_center: Point = pos
+        self.angle: float = angle
+        self.username: str = username
+        self.status: str = status
+        self.next_status: str = "idle"
+        self.x_dir: int = 0
+        self.y_dir: int = 0
+        self.last_shot: int = 0
+        self.left_in_magazine: int = 6
+        self.lasers: list = []
+        self.to_blit = None
+        self.hit_box = None
+
+    def create_image(self, angle: float):
+        """
+        Function that creates my image for pygame, error is here for stuttering
+        :param angle: angle of character and mouse, float that is in radians
+        :return: Nothing
+        """
+        self.angle = angle
+        self.angle *= -180 / math.pi
+        self.angle += 4.5
+        self.to_blit = pygame.transform.rotate(self.animations[self.status].sprite_list[self.animations[self.status].current_sprite], self.angle)               # IN DEGREES
+        self.hit_box = self.to_blit.get_rect()
+        self.hit_box.center = pos_by_distance_and_angle(self.angle, -18.08, -52, self.collision_center)
+
+    def shoot(self, mouse_x: int, mouse_y: int) -> ClientLaser | None:
+        """
+        Shooting feature, player is able to project laser into game
+        :param mouse_x: x coordinate of mouse
+        :param mouse_y: y coordinate of mouse
+        :return: Laser object
+        """
+        if self.status != "reload" and self.last_shot + 0.25 <= time.time() and self.left_in_magazine:
+            self.last_shot = time.time()
+            self.left_in_magazine -= 1
+            laser = ClientLaser(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center), mouse_x, mouse_y)
+            self.lasers.append(laser)
+            # print(*pos_by_distance_and_angle(self.angle, 11.188, -186, self.collision_center))
+            self.status = "shoot"
+            self.animations[self.status].reset()
+            return laser
+        return None
+
+    def reload(self):
+        """
+        Two lines that assist function in the Client python file in reloading animation
+        :return: Nothing
+        """
+        self.status = "reload"
+        self.left_in_magazine = 6
+
+    def move(self):
+        """
+        move function for player, updates coordinates
+        :return: Nothing
+        """
+        self.collision_center.x += self.x_dir * VEL_CONST
+        self.collision_center.y += self.y_dir * VEL_CONST
+
+
+
 
 
 def pos_by_distance_and_angle(player_angle: float, angle_const: float, distance: float, collision_center: Point) -> tuple:
